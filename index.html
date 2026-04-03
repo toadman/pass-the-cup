@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pass the Cup</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --green: #1a472a; --green-light: #2d6a40; --green-bright: #3dbd60;
+    --dirt: #c8a265; --dirt-dark: #a07840; --cream: #f5f0e8;
+    --white: #ffffff; --black: #0a0a0a; --gold: #f0c040;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Barlow', sans-serif; background: var(--green); color: var(--cream); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.015) 40px, rgba(255,255,255,0.015) 80px); pointer-events: none; z-index: 0; }
+  .app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 0 80px; }
+
+  .header { background: var(--black); padding: 18px 20px 14px; text-align: center; border-bottom: 4px solid var(--dirt); position: relative; overflow: hidden; }
+  .header::before { content: '⚾'; position: absolute; font-size: 120px; opacity: 0.04; top: -20px; right: -20px; transform: rotate(15deg); }
+  .header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 3px; color: var(--gold); line-height: 1; text-shadow: 2px 2px 0 rgba(0,0,0,0.5); }
+  .header .subtitle { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-top: 2px; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .card { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 24px 20px; margin: 20px 16px; }
+  .card h2 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--gold); margin-bottom: 18px; }
+
+  label { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--dirt); margin-bottom: 6px; }
+  input[type="text"], input[type="number"] { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: var(--cream); font-family: 'Barlow', sans-serif; font-size: 16px; padding: 10px 14px; margin-bottom: 16px; outline: none; transition: border-color 0.2s; }
+  input:focus { border-color: var(--green-bright); }
+
+  .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .player-row input { margin-bottom: 0; flex: 1; }
+  .player-num { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--dirt); width: 24px; text-align: center; flex-shrink: 0; }
+
+  .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 8px; font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .btn-primary { background: var(--gold); color: var(--black); }
+  .btn-primary:hover { background: #ffd060; transform: translateY(-1px); }
+  .btn-secondary { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--cream); font-size: 16px; padding: 12px; margin-top: 10px; }
+  .btn-add { background: rgba(61,189,96,0.15); border: 1px dashed var(--green-bright); color: var(--green-bright); font-family: 'Barlow Condensed', sans-serif; font-size: 14px; letter-spacing: 2px; padding: 10px; margin-top: 4px; margin-bottom: 16px; }
+  .btn-remove { background: rgba(192,57,43,0.2); border: none; color: #e74c3c; border-radius: 6px; width: 32px; height: 32px; font-size: 16px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+
+  .room-code-display { font-family: 'Bebas Neue', sans-serif; font-size: 56px; letter-spacing: 10px; color: var(--gold); text-align: center; padding: 16px; background: rgba(0,0,0,0.4); border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(240,192,64,0.2); }
+  .room-hint { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.4); text-align: center; margin-bottom: 16px; }
+  .share-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .share-row input { margin-bottom: 0; font-size: 13px; color: rgba(255,255,255,0.5); }
+  .btn-copy { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: var(--cream); border-radius: 8px; padding: 10px 16px; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 1px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.15s; }
+  .btn-copy:hover { background: rgba(255,255,255,0.15); }
+  .waiting-player { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; letter-spacing: 1px; }
+  .waiting-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green-bright); animation: blink 1.5s infinite; flex-shrink: 0; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .cup-section { background: var(--black); padding: 20px; text-align: center; border-bottom: 3px solid var(--dirt-dark); }
+  .cup-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-bottom: 4px; }
+  .cup-amount { font-family: 'Bebas Neue', sans-serif; font-size: 64px; color: var(--gold); line-height: 1; text-shadow: 0 0 30px rgba(240,192,64,0.4); }
+  .cup-amount.pulse { animation: cupPulse 0.4s ease; }
+  @keyframes cupPulse { 0%{transform:scale(1)} 50%{transform:scale(1.12);color:#fff} 100%{transform:scale(1)} }
+  .round-badge { display: inline-block; background: rgba(200,162,101,0.15); border: 1px solid rgba(200,162,101,0.3); border-radius: 20px; padding: 3px 12px; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--dirt); margin-top: 6px; }
+
+  .watcher-banner { background: rgba(61,189,96,0.1); border-bottom: 1px solid rgba(61,189,96,0.2); padding: 10px 16px; display: flex; align-items: center; gap: 8px; }
+  .watcher-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green-bright); animation: blink 1.5s infinite; flex-shrink: 0; }
+  .watcher-text { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 1px; color: var(--green-bright); }
+
+  .holder-section { background: rgba(0,0,0,0.3); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .holder-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--dirt); }
+  .holder-name { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--white); letter-spacing: 1px; line-height: 1.1; }
+  .balance-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--dirt); text-align: right; }
+  .balance-amount { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 1px; line-height: 1.1; }
+  .balance-pos { color: var(--green-bright); } .balance-neg { color: #e74c3c; } .balance-zero { color: var(--cream); }
+
+  .atbat-section { padding: 16px; }
+  .atbat-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-bottom: 12px; text-align: center; }
+  .atbat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .atbat-btn { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 8px; cursor: pointer; transition: all 0.15s; text-align: center; color: var(--cream); }
+  .atbat-btn:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.3); }
+  .atbat-btn:active { transform: translateY(0); }
+  .atbat-btn .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+  .atbat-btn .name { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .atbat-btn .effect { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; margin-top: 2px; opacity: 0.7; }
+  .btn-out { border-color: rgba(192,57,43,0.4); } .btn-out:hover { background: rgba(192,57,43,0.2); border-color: #e74c3c; }
+  .btn-so { border-color: rgba(192,57,43,0.6); } .btn-so:hover { background: rgba(192,57,43,0.3); border-color: #e74c3c; }
+  .btn-walk { border-color: rgba(200,162,101,0.4); } .btn-walk:hover { background: rgba(200,162,101,0.15); border-color: var(--dirt); }
+  .btn-single { border-color: rgba(61,189,96,0.3); } .btn-single:hover { background: rgba(61,189,96,0.15); border-color: var(--green-bright); }
+  .btn-double { border-color: rgba(61,189,96,0.5); } .btn-double:hover { background: rgba(61,189,96,0.2); border-color: var(--green-bright); }
+  .btn-triple { border-color: rgba(61,189,96,0.7); } .btn-triple:hover { background: rgba(61,189,96,0.3); border-color: var(--green-bright); }
+  .btn-hr { grid-column: span 3; background: rgba(240,192,64,0.1); border-color: rgba(240,192,64,0.5); }
+  .btn-hr:hover { background: rgba(240,192,64,0.25); border-color: var(--gold); }
+  .btn-hr .name { font-size: 15px; color: var(--gold); }
+
+  .players-section { padding: 0 16px 16px; }
+  .players-header { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-bottom: 10px; }
+  .player-item { display: flex; align-items: center; padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; background: rgba(0,0,0,0.25); border: 1px solid transparent; transition: all 0.2s; }
+  .player-item.current { background: rgba(240,192,64,0.1); border-color: rgba(240,192,64,0.3); }
+  .player-item.current .player-item-name { color: var(--gold); }
+  .player-order { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--dirt-dark); width: 24px; flex-shrink: 0; }
+  .player-item-name { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; flex: 1; }
+  .cup-icon { font-size: 16px; margin-right: 6px; }
+  .player-item-net { font-family: 'Bebas Neue', sans-serif; font-size: 20px; }
+  .net-pos { color: var(--green-bright); } .net-neg { color: #e74c3c; } .net-zero { color: rgba(255,255,255,0.4); }
+
+  .log-section { padding: 0 16px; margin-bottom: 20px; }
+  .log-header { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-bottom: 10px; }
+  .log-list { max-height: 160px; overflow-y: auto; }
+  .log-item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 6px; margin-bottom: 4px; background: rgba(0,0,0,0.2); font-size: 13px; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+  .log-icon { font-size: 14px; }
+  .log-player { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .log-desc { color: rgba(255,255,255,0.6); flex: 1; font-size: 12px; }
+  .log-change { font-family: 'Bebas Neue', sans-serif; font-size: 16px; }
+  .log-pos { color: var(--green-bright); } .log-neg { color: #e74c3c; } .log-neutral { color: var(--dirt); }
+
+  .undo-row { display: flex; gap: 8px; padding: 0 16px; margin-bottom: 12px; }
+  .btn-undo { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 8px; padding: 8px; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+  .btn-undo:hover { background: rgba(255,255,255,0.1); color: var(--cream); }
+  .divider { height: 1px; background: rgba(255,255,255,0.07); margin: 4px 16px 16px; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--black); border: 2px solid var(--gold); border-radius: 16px; padding: 32px 28px; text-align: center; max-width: 320px; width: 90%; animation: modalPop 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes modalPop { from{transform:scale(0.7);opacity:0} to{transform:scale(1);opacity:1} }
+  .modal-icon { font-size: 60px; margin-bottom: 12px; }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--gold); letter-spacing: 2px; margin-bottom: 6px; }
+  .modal-sub { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; color: var(--cream); margin-bottom: 6px; }
+  .modal-amount { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--green-bright); margin-bottom: 20px; }
+
+  .settle-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; background: rgba(0,0,0,0.3); }
+  .settle-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; text-transform: uppercase; }
+  .settle-detail { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .settle-amount { font-family: 'Bebas Neue', sans-serif; font-size: 24px; }
+
+  .error-msg { background: rgba(192,57,43,0.15); border: 1px solid rgba(192,57,43,0.4); border-radius: 8px; padding: 12px 16px; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; color: #e74c3c; margin-bottom: 12px; display: none; }
+  .error-msg.show { display: block; }
+  .or-divider { text-align: center; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 3px; color: rgba(255,255,255,0.25); margin: 16px 0; text-transform: uppercase; }
+
+  .setup-note { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; color: rgba(255,255,255,0.4); text-align: center; margin-bottom: 16px; line-height: 1.5; }
+  .setup-note a { color: var(--gold); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Pass the Cup</h1>
+    <div class="subtitle">Baseball Betting Game</div>
+  </div>
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen active">
+    <div class="card">
+      <h2>🍺 Start or Join</h2>
+      <button class="btn btn-primary" onclick="showScreen('screen-setup')">Create New Game</button>
+      <div class="or-divider">— or —</div>
+      <label>Join with Room Code</label>
+      <input type="text" id="join-code-input" placeholder="Enter 6-digit code" maxlength="6" style="text-transform:uppercase;letter-spacing:6px;font-size:22px;text-align:center;">
+      <label>Your Name</label>
+      <input type="text" id="join-name-input" placeholder="Your name">
+      <div id="join-error" class="error-msg"></div>
+      <button class="btn btn-primary" onclick="joinGame()">Join Game</button>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div id="screen-setup" class="screen">
+    <div class="card">
+      <h2>⚾ Game Setup</h2>
+      <label>Ante Per Player</label>
+      <input type="number" id="ante-input" value="5" min="1">
+      <label>Players (in order)</label>
+      <div id="players-setup-list">
+        <div class="player-row"><span class="player-num">1</span><input type="text" class="player-name-input" placeholder="Player 1 name"></div>
+        <div class="player-row"><span class="player-num">2</span><input type="text" class="player-name-input" placeholder="Player 2 name"></div>
+        <div class="player-row"><span class="player-num">3</span><input type="text" class="player-name-input" placeholder="Player 3 name"></div>
+      </div>
+      <button class="btn btn-add" onclick="addPlayerRow()">+ Add Player</button>
+      <button class="btn btn-primary" onclick="createGame()">Create Game</button>
+      <button class="btn btn-secondary" onclick="showScreen('screen-home')">← Back</button>
+    </div>
+    <div class="card" style="margin-top:0">
+      <h2>📋 Rules Quick Ref</h2>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;line-height:2;color:rgba(255,255,255,0.8);">
+        <div>☠️ Out → <strong style="color:#e74c3c">$1 in</strong></div>
+        <div>🔀 Fielder's Choice → <strong style="color:#e74c3c">$1 in</strong></div>
+        <div>💀 Double Play → <strong style="color:#e74c3c">$2 in</strong></div>
+        <div>🤚 K Swinging → <strong style="color:#e74c3c">$1 in</strong></div>
+        <div>👀 K Looking → <strong style="color:#e74c3c">$2 in</strong></div>
+        <div>🚶 Walk → <strong style="color:var(--dirt)">Push</strong></div>
+        <div>🦅 Sac Fly/Bunt → <strong style="color:var(--dirt)">Push</strong></div>
+        <div>🥎 Single → <strong style="color:var(--green-bright)">$1 out</strong></div>
+        <div>✌️ Double → <strong style="color:var(--green-bright)">$2 out</strong></div>
+        <div>🔥 Triple → <strong style="color:var(--green-bright)">$3 out</strong></div>
+        <div>💥 Home Run → <strong style="color:var(--gold)">Keep everything!</strong></div>
+        <div>🏃 RBI → <strong style="color:var(--green-bright)">$1 per RBI</strong> (stacks w/ hit, not HR)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="screen-lobby" class="screen">
+    <div class="card">
+      <h2>🍺 Game Lobby</h2>
+      <div class="cup-label" style="margin-bottom:8px;">Share this code with your players</div>
+      <div class="room-code-display" id="lobby-code">------</div>
+      <div class="room-hint">Or share the link below</div>
+      <div class="share-row">
+        <input type="text" id="share-link" readonly style="font-size:12px;">
+        <button class="btn-copy" id="copy-btn" onclick="copyLink()">Copy</button>
+      </div>
+      <div class="cup-label" style="margin-bottom:8px;">Players in room</div>
+      <div id="lobby-players" style="margin-bottom:16px;"></div>
+      <button class="btn btn-primary" id="start-game-btn" onclick="startGame()">Start Game →</button>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen">
+    <div class="cup-section">
+      <div class="cup-label">🍺 In The Cup</div>
+      <div class="cup-amount" id="cup-display">$0</div>
+      <div class="round-badge" id="round-badge">Round 1</div>
+    </div>
+
+    <div class="watcher-banner" id="watcher-banner" style="display:none;">
+      <div class="watcher-dot"></div>
+      <div class="watcher-text">WATCHING LIVE — <span id="watcher-name-display"></span></div>
+    </div>
+
+    <div class="holder-section">
+      <div>
+        <div class="holder-label">🍺 Holding the Cup</div>
+        <div class="holder-name" id="holder-name">—</div>
+      </div>
+      <div>
+        <div class="balance-label">Net</div>
+        <div class="balance-amount balance-zero" id="holder-net">$0</div>
+      </div>
+    </div>
+
+    <!-- Scorekeeper controls -->
+    <div id="scorekeeper-controls">
+      <div class="atbat-section">
+        <div class="atbat-label">⚾ Record At-Bat Result</div>
+        <div class="atbat-grid">
+          <button class="atbat-btn btn-out" onclick="recordResult('out')"><span class="icon">☠️</span><span class="name">Out</span><span class="effect" style="color:#e74c3c">+$1 in</span></button>
+          <button class="atbat-btn btn-out" onclick="recordResult('fc')"><span class="icon">🔀</span><span class="name">FC</span><span class="effect" style="color:#e74c3c">+$1 in</span></button>
+          <button class="atbat-btn btn-so" onclick="recordResult('so_swing')"><span class="icon">🤚</span><span class="name">K Swing</span><span class="effect" style="color:#e74c3c">+$1 in</span></button>
+          <button class="atbat-btn btn-so" onclick="recordResult('so_look')"><span class="icon">👀</span><span class="name">K Look</span><span class="effect" style="color:#e74c3c">+$2 in</span></button>
+          <button class="atbat-btn btn-so" onclick="recordResult('dp')"><span class="icon">💀</span><span class="name">Dbl Play</span><span class="effect" style="color:#e74c3c">+$2 in</span></button>
+          <button class="atbat-btn btn-walk" onclick="recordResult('walk')"><span class="icon">🚶</span><span class="name">Walk</span><span class="effect">Push</span></button>
+          <button class="atbat-btn btn-walk" onclick="recordResult('sac')"><span class="icon">🦅</span><span class="name">Sac</span><span class="effect">Push</span></button>
+          <button class="atbat-btn btn-single" onclick="recordResult('single')"><span class="icon">🥎</span><span class="name">Single</span><span class="effect" style="color:var(--green-bright)">-$1 out</span></button>
+          <button class="atbat-btn btn-double" onclick="recordResult('double')"><span class="icon">✌️</span><span class="name">Double</span><span class="effect" style="color:var(--green-bright)">-$2 out</span></button>
+          <button class="atbat-btn btn-triple" onclick="recordResult('triple')"><span class="icon">🔥</span><span class="name">Triple</span><span class="effect" style="color:var(--green-bright)">-$3 out</span></button>
+          <button class="atbat-btn btn-hr" onclick="recordResult('hr')" style="grid-column:span 3;"><span class="icon">💥</span><span class="name">Home Run — Keep Everything!</span></button>
+        </div>
+        <div id="rbi-section" style="margin-top:8px;">
+          <div id="rbi-label" class="atbat-label" style="margin-bottom:8px;">🏃 RBIs on this at-bat (stacks with hit)</div>
+          <div style="display:flex;gap:8px;">
+            <button class="atbat-btn btn-single" style="flex:1;" onclick="recordRBI(1)"><span class="icon">1️⃣</span><span class="name">1 RBI</span><span class="effect" style="color:var(--green-bright)">-$1</span></button>
+            <button class="atbat-btn btn-double" style="flex:1;" onclick="recordRBI(2)"><span class="icon">2️⃣</span><span class="name">2 RBIs</span><span class="effect" style="color:var(--green-bright)">-$2</span></button>
+            <button class="atbat-btn btn-triple" style="flex:1;" onclick="recordRBI(3)"><span class="icon">3️⃣</span><span class="name">3 RBIs</span><span class="effect" style="color:var(--green-bright)">-$3</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="undo-row">
+        <button class="btn-undo" onclick="undoLast()">↩ Undo Last</button>
+        <button class="btn-undo" onclick="endGame()" style="color:rgba(240,192,64,0.6);border-color:rgba(240,192,64,0.2);">🏁 End & Settle Up</button>
+      </div>
+      <div class="divider"></div>
+    </div>
+
+    <div class="players-section">
+      <div class="players-header">Players</div>
+      <div id="players-list"></div>
+    </div>
+    <div class="log-section">
+      <div class="log-header">Play Log</div>
+      <div class="log-list" id="log-list"></div>
+    </div>
+  </div>
+
+  <!-- SETTLE -->
+  <div id="screen-settle" class="screen">
+    <div class="card">
+      <h2>🏁 Game Over — Settle Up</h2>
+      <div id="settle-list" style="margin-bottom:16px;"></div>
+      <button class="btn btn-primary" onclick="resetGame()">New Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- HR MODAL -->
+<div class="modal-overlay" id="hr-modal">
+  <div class="modal">
+    <div class="modal-icon">💥</div>
+    <div class="modal-title">Home Run!</div>
+    <div class="modal-sub" id="hr-winner-name">Player</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;color:rgba(255,255,255,0.6);font-size:14px;margin-bottom:8px;">walks away with</div>
+    <div class="modal-amount" id="hr-amount">$0</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;color:rgba(255,255,255,0.5);font-size:13px;letter-spacing:1px;margin-bottom:20px;">THE CUP RESETS — NEW ROUND STARTS</div>
+    <button class="btn btn-primary" onclick="closeHRModal()">Let's Go! ⚾</button>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────
+let db = null;
+let roomCode = null;
+let isScorekeeper = false;
+let myName = '';
+let gameRef = null;
+let localState = null;
+let lastHRKey = null;
+let playerCount = 3;
+
+// ─── FIREBASE ────────────────────────────────────────
+function initFirebase() {
+  try {
+    if (!firebase.apps.length) {
+      firebase.initializeApp({
+        apiKey: "AIzaSyABv_nSPySDWzdKvgi_IAugOXoIZYJ9I3M",
+        databaseURL: "https://pass-the-cup-dd81e-default-rtdb.firebaseio.com",
+        projectId: "pass-the-cup-dd81e"
+      });
+    }
+    db = firebase.database();
+    return true;
+  } catch(e) {
+    console.error(e);
+    return false;
+  }
+}
+
+// ─── ROOM CODE ───────────────────────────────────────
+function generateCode() {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, () => c[Math.floor(Math.random()*c.length)]).join('');
+}
+
+// ─── SETUP ───────────────────────────────────────────
+function addPlayerRow() {
+  playerCount++;
+  const list = document.getElementById('players-setup-list');
+  const row = document.createElement('div');
+  row.className = 'player-row';
+  row.innerHTML = `<span class="player-num">${playerCount}</span><input type="text" class="player-name-input" placeholder="Player ${playerCount} name"><button class="btn-remove" onclick="removePlayerRow(this)">✕</button>`;
+  list.appendChild(row);
+}
+function removePlayerRow(btn) {
+  btn.parentElement.remove();
+  document.querySelectorAll('#players-setup-list .player-row').forEach((r,i) => r.querySelector('.player-num').textContent = i+1);
+  playerCount = document.querySelectorAll('#players-setup-list .player-row').length;
+}
+
+async function createGame() {
+  const ante   = parseFloat(document.getElementById('ante-input').value) || 5;
+  const inputs = document.querySelectorAll('.player-name-input');
+  const players = Array.from(inputs).map((inp,i) => ({ name: inp.value.trim() || `Player ${i+1}`, net: 0 }));
+  if (players.length < 2) { alert('Add at least 2 players!'); return; }
+
+  if (!initFirebase()) { alert('Could not connect. Please try again.'); return; }
+
+  roomCode = generateCode();
+  isScorekeeper = true;
+
+  const init = {
+    players, ante,
+    cupAmount: players.length * ante,
+    currentHolderIndex: 0,
+    round: 1,
+    log: [],
+    lastResultWasHR: false,
+    lastHRWinner: null,
+    lastHRAmount: 0,
+    lastHRRound: 0,
+    undoSnapshot: null,
+    status: 'lobby',
+    watchers: {}
+  };
+
+  await db.ref(`games/${roomCode}`).set(init);
+
+  document.getElementById('lobby-code').textContent = roomCode;
+  const link = `${location.origin}${location.pathname}?room=${roomCode}`;
+  document.getElementById('share-link').value = link;
+  showScreen('screen-lobby');
+
+  db.ref(`games/${roomCode}/watchers`).on('value', snap => renderLobbyPlayers(snap.val() || {}));
+}
+
+async function joinGame() {
+  const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+  const name = document.getElementById('join-name-input').value.trim() || 'Player';
+  if (code.length < 6) { showErr('join-error','Enter the 6-digit room code.'); return; }
+
+  if (!initFirebase()) { showErr('join-error','Could not connect.'); return; }
+
+  const snap = await db.ref(`games/${code}`).get();
+  if (!snap.exists()) { showErr('join-error','Room not found. Check the code.'); return; }
+
+  roomCode = code; isScorekeeper = false; myName = name;
+  const watcherId = db.ref(`games/${roomCode}/watchers`).push().key;
+  await db.ref(`games/${roomCode}/watchers/${watcherId}`).set({ name });
+
+  const data = snap.val();
+  if (data.status === 'playing') {
+    launchWatcherView();
+  } else {
+    document.getElementById('lobby-code').textContent = roomCode;
+    document.getElementById('share-link').value = `${location.origin}${location.pathname}?room=${roomCode}`;
+    document.getElementById('start-game-btn').style.display = 'none';
+    showScreen('screen-lobby');
+    db.ref(`games/${roomCode}/watchers`).on('value', snap => renderLobbyPlayers(snap.val() || {}));
+    db.ref(`games/${roomCode}/status`).on('value', snap => {
+      if (snap.val() === 'playing') launchWatcherView();
+    });
+  }
+}
+
+function renderLobbyPlayers(watchers) {
+  const el = document.getElementById('lobby-players');
+  let html = `<div class="waiting-player"><div class="waiting-dot"></div> ${isScorekeeper ? 'You (Scorekeeper)' : 'Scorekeeper'}</div>`;
+  Object.values(watchers).forEach(w => {
+    html += `<div class="waiting-player"><div class="waiting-dot"></div> ${w.name}</div>`;
+  });
+  el.innerHTML = html;
+}
+
+async function startGame() {
+  await db.ref(`games/${roomCode}/status`).set('playing');
+  setupListener();
+  showScreen('screen-game');
+}
+
+function launchWatcherView() {
+  setupListener();
+  showScreen('screen-game');
+  document.getElementById('scorekeeper-controls').style.display = 'none';
+  document.getElementById('watcher-banner').style.display = 'flex';
+  document.getElementById('watcher-name-display').textContent = myName;
+}
+
+// ─── REAL-TIME LISTENER ──────────────────────────────
+function setupListener() {
+  gameRef = db.ref(`games/${roomCode}`);
+  gameRef.on('value', snap => {
+    if (!snap.exists()) return;
+    const s = snap.val();
+    localState = s;
+    renderGame(s);
+    // Show HR modal on all devices
+    if (s.lastResultWasHR && s.lastHRWinner) {
+      const key = `${s.lastHRWinner}-${s.lastHRRound}`;
+      if (lastHRKey !== key) {
+        lastHRKey = key;
+        document.getElementById('hr-winner-name').textContent = s.lastHRWinner;
+        document.getElementById('hr-amount').textContent = `$${fmt(s.lastHRAmount)}`;
+        document.getElementById('hr-modal').classList.add('show');
+      }
+    }
+    if (s.status === 'settled') { renderSettle(s); showScreen('screen-settle'); }
+  });
+}
+
+// ─── RESULTS ─────────────────────────────────────────
+const R = {
+  out:      { icon:'☠️',  delta:+1, dir:'in',   desc:'put $1 in the cup' },
+  fc:       { icon:'🔀',  delta:+1, dir:'in',   desc:"put $1 in (fielder's choice)" },
+  so_swing: { icon:'🤚',  delta:+1, dir:'in',   desc:'put $1 in (K swinging)' },
+  so_look:  { icon:'👀',  delta:+2, dir:'in',   desc:'put $2 in (K looking)' },
+  dp:       { icon:'💀',  delta:+2, dir:'in',   desc:'put $2 in (double play)' },
+  walk:     { icon:'🚶',  delta:0,  dir:'push', desc:'push — nothing' },
+  sac:      { icon:'🦅',  delta:0,  dir:'push', desc:'push — sac fly/bunt' },
+  single:   { icon:'🥎',  delta:-1, dir:'out',  desc:'took $1 from the cup' },
+  double:   { icon:'✌️',  delta:-2, dir:'out',  desc:'took $2 from the cup' },
+  triple:   { icon:'🔥',  delta:-3, dir:'out',  desc:'took $3 from the cup' },
+  hr:       { icon:'💥',  delta:0,  dir:'hr',   desc:'HOME RUN — kept the cup!' },
+};
+
+function recordResult(type) {
+  if (!isScorekeeper || !localState) return;
+  const r = R[type];
+  const s = JSON.parse(JSON.stringify(localState));
+  s.undoSnapshot = JSON.stringify(localState);
+  const holder = s.players[s.currentHolderIndex];
+
+  if (type === 'hr') {
+    const won = s.cupAmount;
+    holder.net += won;
+    s.lastResultWasHR = true;
+    s.lastHRWinner = holder.name;
+    s.lastHRAmount = won;
+    s.lastHRRound = s.round;
+    pushLog(s, holder.name, r.icon, r.desc, won, 'gold');
+    s.round++;
+    s.cupAmount = s.players.length * s.ante;
+    s.currentHolderIndex = (s.currentHolderIndex + 1) % s.players.length;
+  } else {
+    s.lastResultWasHR = false;
+    if (r.dir === 'in') {
+      s.cupAmount += r.delta;
+      holder.net -= r.delta;
+      pushLog(s, holder.name, r.icon, r.desc, -r.delta, 'neg');
+    } else if (r.dir === 'out') {
+      const take = Math.min(Math.abs(r.delta), s.cupAmount);
+      s.cupAmount -= take;
+      holder.net += take;
+      pushLog(s, holder.name, r.icon, r.desc, take, 'pos');
+    } else {
+      pushLog(s, holder.name, r.icon, r.desc, 0, 'neutral');
+    }
+    s.currentHolderIndex = (s.currentHolderIndex + 1) % s.players.length;
+  }
+  db.ref(`games/${roomCode}`).update(s);
+}
+
+function recordRBI(count) {
+  if (!isScorekeeper || !localState) return;
+  const s = JSON.parse(JSON.stringify(localState));
+  s.undoSnapshot = JSON.stringify(localState);
+  const holder = s.players[s.currentHolderIndex];
+  const take = Math.min(count, s.cupAmount);
+  s.cupAmount -= take;
+  holder.net += take;
+  pushLog(s, holder.name, '🏃', `took $${take} for ${count} RBI${count>1?'s':''}`, take, 'pos');
+  db.ref(`games/${roomCode}`).update(s);
+}
+
+function pushLog(s, name, icon, desc, amount, type) {
+  s.log = [{ playerName:name, icon, desc, amount, type }, ...(s.log||[])].slice(0, 30);
+}
+
+function undoLast() {
+  if (!isScorekeeper || !localState?.undoSnapshot) return;
+  db.ref(`games/${roomCode}`).set(JSON.parse(localState.undoSnapshot));
+}
+
+function closeHRModal() { document.getElementById('hr-modal').classList.remove('show'); }
+
+function endGame() {
+  if (!isScorekeeper) return;
+  if (!confirm('End the game and settle up?')) return;
+  db.ref(`games/${roomCode}/status`).set('settled');
+}
+
+function resetGame() {
+  if (gameRef) gameRef.off();
+  roomCode=null; isScorekeeper=false; myName=''; localState=null; lastHRKey=null;
+  showScreen('screen-home');
+}
+
+// ─── RENDER ──────────────────────────────────────────
+function renderGame(s) {
+  // Cup
+  const cupEl = document.getElementById('cup-display');
+  const val = `$${fmt(s.cupAmount)}`;
+  if (cupEl.textContent !== val) {
+    cupEl.textContent = val;
+    cupEl.classList.remove('pulse');
+    void cupEl.offsetWidth;
+    cupEl.classList.add('pulse');
+  }
+  document.getElementById('round-badge').textContent = `Round ${s.round}`;
+
+  // RBI state
+  const rbiSec = document.getElementById('rbi-section');
+  const rbiLbl = document.getElementById('rbi-label');
+  rbiSec.style.opacity = s.lastResultWasHR ? '0.35' : '1';
+  rbiSec.style.pointerEvents = s.lastResultWasHR ? 'none' : '';
+  rbiLbl.textContent = s.lastResultWasHR ? '🏃 RBIs — N/A on Home Runs' : '🏃 RBIs on this at-bat (stacks with hit)';
+
+  // Holder
+  const holder = s.players[s.currentHolderIndex];
+  document.getElementById('holder-name').textContent = holder.name;
+  const net = holder.net;
+  const netEl = document.getElementById('holder-net');
+  netEl.textContent = (net>=0?'+':'') + `$${fmt(Math.abs(net))}`;
+  netEl.className = 'balance-amount ' + (net>0?'balance-pos':net<0?'balance-neg':'balance-zero');
+
+  // Players
+  document.getElementById('players-list').innerHTML = s.players.map((p,i) => {
+    const cur = i === s.currentHolderIndex;
+    const n = p.net, ns = (n>=0?'+':'') + `$${fmt(Math.abs(n))}`;
+    const nc = n>0?'net-pos':n<0?'net-neg':'net-zero';
+    return `<div class="player-item ${cur?'current':''}">
+      <span class="player-order">${i+1}</span>
+      ${cur?'<span class="cup-icon">🍺</span>':''}
+      <span class="player-item-name">${p.name}</span>
+      <span class="player-item-net ${nc}">${ns}</span>
+    </div>`;
+  }).join('');
+
+  // Log
+  document.getElementById('log-list').innerHTML = (s.log||[]).slice(0,15).map(l => {
+    const cs = l.amount>0?`+$${l.amount}`:l.amount<0?`-$${Math.abs(l.amount)}`:'—';
+    const cc = l.type==='pos'||l.type==='gold'?'log-pos':l.type==='neg'?'log-neg':'log-neutral';
+    return `<div class="log-item"><span class="log-icon">${l.icon}</span><span class="log-player">${l.playerName}</span><span class="log-desc">${l.desc}</span><span class="log-change ${cc}">${cs}</span></div>`;
+  }).join('');
+}
+
+function renderSettle(s) {
+  const rows = s.players.map(p=>({name:p.name,net:p.net-s.ante})).sort((a,b)=>b.net-a.net);
+  document.getElementById('settle-list').innerHTML = rows.map(p => {
+    const cl = p.net>0?'net-pos':p.net<0?'net-neg':'net-zero';
+    const str = (p.net>=0?'+':'') + `$${fmt(Math.abs(p.net))}`;
+    const lbl = p.net>0?'💰 Wins':p.net<0?'💸 Owes':'😐 Even';
+    return `<div class="settle-item"><div><div class="settle-name">${p.name}</div><div class="settle-detail">${lbl}</div></div><div class="settle-amount ${cl}">${str}</div></div>`;
+  }).join('');
+}
+
+// ─── UTILS ───────────────────────────────────────────
+function fmt(n) { return Number(n).toFixed(2).replace(/\.00$/,''); }
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function showErr(id, msg) { const el=document.getElementById(id); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),4000); }
+function copyLink() {
+  navigator.clipboard.writeText(document.getElementById('share-link').value).then(()=>{
+    const btn=document.getElementById('copy-btn'); btn.textContent='Copied!';
+    setTimeout(()=>btn.textContent='Copy',2000);
+  });
+}
+
+// Auto-fill room code from URL param
+window.addEventListener('load', () => {
+  const r = new URLSearchParams(location.search).get('room');
+  if (r) document.getElementById('join-code-input').value = r.toUpperCase();
+});
+</script>
+</body>
+</html>
