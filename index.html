@@ -517,12 +517,11 @@ function startMLBPoll(gameId) {
 async function pollMLB() {
   if (!selectedGameId) return;
   try {
-    const PROXY = 'https://corsproxy.io/?';
-    const res = await fetch(PROXY + encodeURIComponent('https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live'));
-    const data = await res.json();
-    const live = data.liveData;
+    var PROXY = 'https://corsproxy.io/?';
+    var res = await fetch(PROXY + encodeURIComponent('https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live'));
+    var data = await res.json();
+    var live = data.liveData;
 
-    // Debug — show raw response info in the strip
     document.getElementById('batter-strip').style.display = 'flex';
     if (!live) {
       document.getElementById('batter-name').innerHTML = '<span style="color:red;">No liveData in response</span>';
@@ -530,36 +529,42 @@ async function pollMLB() {
       return;
     }
 
-    // Current batter — try multiple paths
-    const currentPlay = (live.plays && live.plays.currentPlay) ? live.plays.currentPlay : null;
-    const batterName = currentPlay && currentPlay.matchup && currentPlay.matchup.batter
+    var linescore = live.linescore || {};
+    var currentPlay = (live.plays && live.plays.currentPlay) ? live.plays.currentPlay : null;
+
+    // Check if game is final
+    var gameStatus = data.gameData && data.gameData.status ? data.gameData.status.abstractGameState : '';
+    if (gameStatus === 'Final') {
+      var awayFinal = data.gameData.teams.away.abbreviation || '';
+      var homeFinal = data.gameData.teams.home.abbreviation || '';
+      var awayRunsFinal = linescore.teams && linescore.teams.away ? linescore.teams.away.runs : 0;
+      var homeRunsFinal = linescore.teams && linescore.teams.home ? linescore.teams.home.runs : 0;
+      document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.5);">Game Over</span>';
+      document.getElementById('game-score').textContent = 'Final · ' + awayFinal + ' ' + awayRunsFinal + ' - ' + homeFinal + ' ' + homeRunsFinal;
+      return;
+    }
+    var batterName = currentPlay && currentPlay.matchup && currentPlay.matchup.batter
       ? currentPlay.matchup.batter.fullName : null;
-    const inning = (currentPlay && currentPlay.about && currentPlay.about.inning)
+    var inning = (currentPlay && currentPlay.about && currentPlay.about.inning)
       ? currentPlay.about.inning
       : (linescore.currentInning ? linescore.currentInning : '?');
-    const halfInning = (currentPlay && currentPlay.about && currentPlay.about.halfInning)
+    var halfInning = (currentPlay && currentPlay.about && currentPlay.about.halfInning)
       ? currentPlay.about.halfInning
       : (linescore.inningHalf ? linescore.inningHalf.toLowerCase() : 'bottom');
-    const half = halfInning === 'top' ? '▲' : '▼';
+    var half = halfInning === 'top' ? '▲' : '▼';
 
-    const linescore = live.linescore || {};
-    const awayTeams = linescore.teams && linescore.teams.away ? linescore.teams.away : {};
-    const homeTeams = linescore.teams && linescore.teams.home ? linescore.teams.home : {};
-    const awayScore = awayTeams.runs !== undefined ? awayTeams.runs : 0;
-    const homeScore = homeTeams.runs !== undefined ? homeTeams.runs : 0;
-    const awayAbbr = data.gameData && data.gameData.teams && data.gameData.teams.away
+    var awayTeams = linescore.teams && linescore.teams.away ? linescore.teams.away : {};
+    var homeTeams = linescore.teams && linescore.teams.home ? linescore.teams.home : {};
+    var awayScore = awayTeams.runs !== undefined ? awayTeams.runs : 0;
+    var homeScore = homeTeams.runs !== undefined ? homeTeams.runs : 0;
+    var awayAbbr = data.gameData && data.gameData.teams && data.gameData.teams.away
       ? data.gameData.teams.away.abbreviation : '';
-    const homeAbbr = data.gameData && data.gameData.teams && data.gameData.teams.home
+    var homeAbbr = data.gameData && data.gameData.teams && data.gameData.teams.home
       ? data.gameData.teams.home.abbreviation : '';
 
-    // Current count
-    const count = currentPlay && currentPlay.count ? currentPlay.count : {};
-    const balls = count.balls !== undefined ? count.balls : 0;
-    const strikes = count.strikes !== undefined ? count.strikes : 0;
-
-    // Always show the strip if we have any game data
-    const strip = document.getElementById('batter-strip');
-    strip.style.display = 'flex';
+    var count = currentPlay && currentPlay.count ? currentPlay.count : {};
+    var balls = count.balls !== undefined ? count.balls : 0;
+    var strikes = count.strikes !== undefined ? count.strikes : 0;
 
     if (batterName) {
       document.getElementById('batter-name').innerHTML = batterName +
@@ -571,19 +576,19 @@ async function pollMLB() {
 
     // Auto-record completed at-bats (scorekeeper only)
     if (!isScorekeeper) return;
-    const allPlays = (live.plays && live.plays.allPlays) ? live.plays.allPlays : [];
-    const lastCompleted = allPlays.slice().reverse().find(function(p) { return p.about && p.about.isComplete; });
+    var allPlays = (live.plays && live.plays.allPlays) ? live.plays.allPlays : [];
+    var lastCompleted = allPlays.slice().reverse().find(function(p) { return p.about && p.about.isComplete; });
     if (!lastCompleted) return;
-    const atBatIndex = lastCompleted.about && lastCompleted.about.atBatIndex !== undefined
+    var atBatIndex = lastCompleted.about && lastCompleted.about.atBatIndex !== undefined
       ? lastCompleted.about.atBatIndex : null;
     if (atBatIndex === null || atBatIndex === lastProcessedAtBat) return;
     lastProcessedAtBat = atBatIndex;
 
-    const event = lastCompleted.result ? lastCompleted.result.eventType : null;
-    const rbi = lastCompleted.result ? (lastCompleted.result.rbi || 0) : 0;
+    var event = lastCompleted.result ? lastCompleted.result.eventType : null;
+    var rbi = lastCompleted.result ? (lastCompleted.result.rbi || 0) : 0;
     if (!event) return;
 
-    const mapped = MLB_EVENT_MAP[event];
+    var mapped = MLB_EVENT_MAP[event];
     if (!mapped) return;
 
     recordResult(mapped, true);
@@ -592,12 +597,9 @@ async function pollMLB() {
     }
   } catch(e) {
     console.warn('MLB poll error:', e);
-    var strip = document.getElementById('batter-strip');
-    if (strip) {
-      strip.style.display = 'flex';
-      document.getElementById('batter-name').innerHTML = '<span style="color:red;">Error: ' + e.message + '</span>';
-      document.getElementById('game-score').textContent = 'Check console';
-    }
+    document.getElementById('batter-strip').style.display = 'flex';
+    document.getElementById('batter-name').innerHTML = '<span style="color:red;">Error: ' + e.message + '</span>';
+    document.getElementById('game-score').textContent = 'Check console';
   }
 }
 
