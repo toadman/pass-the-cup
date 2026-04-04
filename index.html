@@ -567,6 +567,7 @@ async function pollMLB() {
     var strikes = count.strikes !== undefined ? count.strikes : 0;
 
     if (batterName) {
+      // Always update display — even if same batter, count may have changed
       document.getElementById('batter-name').innerHTML = batterName +
         ' <span style="color:var(--dirt);font-size:18px;letter-spacing:2px;">' + balls + '-' + strikes + '</span>';
     } else {
@@ -864,7 +865,16 @@ function launchWatcherView() {
   showScreen('screen-game');
   document.getElementById('scorekeeper-controls').style.display = 'none';
   document.getElementById('watcher-banner').style.display = 'flex';
-  document.getElementById('watcher-label').textContent = `WATCHING LIVE — ${myName}`;
+  document.getElementById('watcher-label').textContent = 'WATCHING LIVE — ' + myName;
+  // Start MLB poll for watchers too
+  if (db && roomCode) {
+    db.ref('games/' + roomCode + '/mlbGameId').get().then(function(snap) {
+      if (snap.val()) {
+        document.getElementById('auto-badge').style.display = 'inline-block';
+        startMLBPoll(snap.val());
+      }
+    });
+  }
 }
 
 async function leaveGame() {
