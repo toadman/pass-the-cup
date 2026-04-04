@@ -9,135 +9,167 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
   :root {
-    --green: #1a472a; --green-light: #2d6a40; --green-bright: #3dbd60;
-    --dirt: #c8a265; --dirt-dark: #a07840; --cream: #f5f0e8;
-    --white: #ffffff; --black: #0a0a0a; --gold: #f0c040;
+    --green:#1a472a; --green-light:#2d6a40; --green-bright:#3dbd60;
+    --dirt:#c8a265; --dirt-dark:#a07840; --cream:#f5f0e8;
+    --white:#ffffff; --black:#0a0a0a; --gold:#f0c040; --red:#e74c3c;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Barlow', sans-serif; background: var(--green); color: var(--cream); min-height: 100vh; overflow-x: hidden; }
-  body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.015) 40px, rgba(255,255,255,0.015) 80px); pointer-events: none; z-index: 0; }
-  .app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 0 80px; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Barlow',sans-serif;font-size:18px;background:var(--green);color:var(--cream);min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(255,255,255,0.015) 40px,rgba(255,255,255,0.015) 80px);pointer-events:none;z-index:0;}
+  .app{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:0 0 80px;}
 
-  .header { background: var(--black); padding: 18px 20px 14px; text-align: center; border-bottom: 4px solid var(--dirt); position: relative; overflow: hidden; }
-  .header::before { content: '⚾'; position: absolute; font-size: 120px; opacity: 0.04; top: -20px; right: -20px; transform: rotate(15deg); }
-  .header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 3px; color: var(--gold); line-height: 1; text-shadow: 2px 2px 0 rgba(0,0,0,0.5); }
-  .header .subtitle { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-top: 2px; }
+  /* HEADER */
+  .header{background:var(--black);padding:18px 20px 14px;text-align:center;border-bottom:4px solid var(--dirt);position:relative;overflow:hidden;}
+  .header::before{content:'⚾';position:absolute;font-size:120px;opacity:0.04;top:-20px;right:-20px;transform:rotate(15deg);}
+  .header h1{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:3px;color:var(--gold);line-height:1;text-shadow:2px 2px 0 rgba(0,0,0,0.5);}
+  .header .subtitle{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:4px;text-transform:uppercase;color:var(--dirt);margin-top:2px;}
 
-  .screen { display: none; }
-  .screen.active { display: block; }
+  .screen{display:none;} .screen.active{display:block;}
 
-  .card { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 24px 20px; margin: 20px 16px; }
-  .card h2 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--gold); margin-bottom: 18px; }
+  .card{background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px 20px;margin:20px 16px;}
+  .card h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);margin-bottom:18px;}
 
-  label { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--dirt); margin-bottom: 6px; }
-  input[type="text"], input[type="number"] { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: var(--cream); font-family: 'Barlow', sans-serif; font-size: 16px; padding: 10px 14px; margin-bottom: 16px; outline: none; transition: border-color 0.2s; }
-  input:focus { border-color: var(--green-bright); }
+  label{display:block;font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:3px;text-transform:uppercase;color:var(--dirt);margin-bottom:6px;}
+  input[type="text"],input[type="number"]{width:100%;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--cream);font-family:'Barlow',sans-serif;font-size:18px;padding:10px 14px;margin-bottom:16px;outline:none;transition:border-color 0.2s;}
+  input:focus{border-color:var(--green-bright);}
+  select{width:100%;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--cream);font-family:'Barlow',sans-serif;font-size:16px;padding:10px 14px;margin-bottom:16px;outline:none;}
+  select option{background:#1a3a25;color:var(--cream);}
 
-  .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-  .player-row input { margin-bottom: 0; flex: 1; }
-  .player-num { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--dirt); width: 24px; text-align: center; flex-shrink: 0; }
+  .player-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+  .player-row input{margin-bottom:0;flex:1;}
+  .player-num{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--dirt);width:24px;text-align:center;flex-shrink:0;}
 
-  .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 8px; font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; cursor: pointer; transition: all 0.15s; text-align: center; }
-  .btn-primary { background: var(--gold); color: var(--black); }
-  .btn-primary:hover { background: #ffd060; transform: translateY(-1px); }
-  .btn-secondary { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--cream); font-size: 16px; padding: 12px; margin-top: 10px; }
-  .btn-add { background: rgba(61,189,96,0.15); border: 1px dashed var(--green-bright); color: var(--green-bright); font-family: 'Barlow Condensed', sans-serif; font-size: 14px; letter-spacing: 2px; padding: 10px; margin-top: 4px; margin-bottom: 16px; }
-  .btn-remove { background: rgba(192,57,43,0.2); border: none; color: #e74c3c; border-radius: 6px; width: 32px; height: 32px; font-size: 16px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .btn{display:block;width:100%;padding:14px;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;cursor:pointer;transition:all 0.15s;text-align:center;}
+  .btn-primary{background:var(--gold);color:var(--black);}
+  .btn-primary:hover{background:#ffd060;transform:translateY(-1px);}
+  .btn-secondary{background:transparent;border:1px solid rgba(255,255,255,0.2);color:var(--cream);font-size:16px;padding:12px;margin-top:10px;}
+  .btn-danger{background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);color:var(--red);font-size:16px;padding:12px;margin-top:10px;}
+  .btn-add{background:rgba(61,189,96,0.15);border:1px dashed var(--green-bright);color:var(--green-bright);font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:2px;padding:10px;margin-top:4px;margin-bottom:16px;}
+  .btn-remove{background:rgba(192,57,43,0.2);border:none;color:#e74c3c;border-radius:6px;width:32px;height:32px;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 
-  .room-code-display { font-family: 'Bebas Neue', sans-serif; font-size: 56px; letter-spacing: 10px; color: var(--gold); text-align: center; padding: 16px; background: rgba(0,0,0,0.4); border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(240,192,64,0.2); }
-  .room-hint { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.4); text-align: center; margin-bottom: 16px; }
-  .share-row { display: flex; gap: 8px; margin-bottom: 16px; }
-  .share-row input { margin-bottom: 0; font-size: 13px; color: rgba(255,255,255,0.5); }
-  .btn-copy { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: var(--cream); border-radius: 8px; padding: 10px 16px; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 1px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.15s; }
-  .btn-copy:hover { background: rgba(255,255,255,0.15); }
-  .waiting-player { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; letter-spacing: 1px; }
-  .waiting-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green-bright); animation: blink 1.5s infinite; flex-shrink: 0; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  /* REJOIN BANNER */
+  .rejoin-banner{background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:10px;padding:16px;margin:16px 16px 0;display:none;}
+  .rejoin-banner.show{display:block;}
+  .rejoin-title{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:2px;margin-bottom:4px;}
+  .rejoin-info{font-family:'Barlow Condensed',sans-serif;font-size:14px;color:rgba(255,255,255,0.6);margin-bottom:12px;}
 
-  .cup-section { background: var(--black); padding: 20px; text-align: center; border-bottom: 3px solid var(--dirt-dark); }
-  .cup-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-bottom: 4px; }
-  .cup-amount { font-family: 'Bebas Neue', sans-serif; font-size: 64px; color: var(--gold); line-height: 1; text-shadow: 0 0 30px rgba(240,192,64,0.4); }
-  .cup-amount.pulse { animation: cupPulse 0.4s ease; }
-  @keyframes cupPulse { 0%{transform:scale(1)} 50%{transform:scale(1.12);color:#fff} 100%{transform:scale(1)} }
-  .round-badge { display: inline-block; background: rgba(200,162,101,0.15); border: 1px solid rgba(200,162,101,0.3); border-radius: 20px; padding: 3px 12px; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--dirt); margin-top: 6px; }
+  /* LOBBY */
+  .room-code-display{font-family:'Bebas Neue',sans-serif;font-size:56px;letter-spacing:10px;color:var(--gold);text-align:center;padding:16px;background:rgba(0,0,0,0.4);border-radius:10px;margin-bottom:8px;border:1px solid rgba(240,192,64,0.2);}
+  .room-hint{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:16px;}
+  .share-row{display:flex;gap:8px;margin-bottom:16px;}
+  .share-row input{margin-bottom:0;font-size:13px;color:rgba(255,255,255,0.5);}
+  .btn-copy{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:var(--cream);border-radius:8px;padding:10px 16px;font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all 0.15s;}
+  .btn-copy:hover{background:rgba(255,255,255,0.15);}
+  .waiting-player{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:8px;margin-bottom:6px;font-family:'Barlow Condensed',sans-serif;font-size:15px;letter-spacing:1px;}
+  .waiting-dot{width:8px;height:8px;border-radius:50%;background:var(--green-bright);animation:blink 1.5s infinite;flex-shrink:0;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
 
-  .watcher-banner { background: rgba(61,189,96,0.1); border-bottom: 1px solid rgba(61,189,96,0.2); padding: 10px 16px; display: flex; align-items: center; gap: 8px; }
-  .watcher-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green-bright); animation: blink 1.5s infinite; flex-shrink: 0; }
-  .watcher-text { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 1px; color: var(--green-bright); }
+  /* GAME */
+  .cup-section{background:var(--black);padding:20px;text-align:center;border-bottom:3px solid var(--dirt-dark);}
+  .cup-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--dirt);margin-bottom:4px;}
+  .cup-amount{font-family:'Bebas Neue',sans-serif;font-size:64px;color:var(--gold);line-height:1;text-shadow:0 0 30px rgba(240,192,64,0.4);}
+  .cup-amount.pulse{animation:cupPulse 0.4s ease;}
+  @keyframes cupPulse{0%{transform:scale(1)}50%{transform:scale(1.12);color:#fff}100%{transform:scale(1)}}
+  .round-badge{display:inline-block;background:rgba(200,162,101,0.15);border:1px solid rgba(200,162,101,0.3);border-radius:20px;padding:3px 12px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--dirt);margin-top:6px;}
 
-  .holder-section { background: rgba(0,0,0,0.3); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .holder-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--dirt); }
-  .holder-name { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--white); letter-spacing: 1px; line-height: 1.1; }
-  .balance-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--dirt); text-align: right; }
-  .balance-amount { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 1px; line-height: 1.1; }
-  .balance-pos { color: var(--green-bright); } .balance-neg { color: #e74c3c; } .balance-zero { color: var(--cream); }
+  /* MLB BATTER STRIP */
+  .batter-strip{background:rgba(0,0,0,0.5);border-bottom:1px solid rgba(255,255,255,0.06);padding:10px 16px;display:flex;align-items:center;gap:10px;}
+  .batter-strip-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--dirt);flex-shrink:0;}
+  .batter-strip-name{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--white);letter-spacing:1px;flex:1;}
+  .batter-strip-game{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:rgba(255,255,255,0.4);text-align:right;}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:blink 1s infinite;flex-shrink:0;}
 
-  .atbat-section { padding: 16px; }
-  .atbat-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-bottom: 12px; text-align: center; }
-  .atbat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-  .atbat-btn { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 8px; cursor: pointer; transition: all 0.15s; text-align: center; color: var(--cream); }
-  .atbat-btn:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.3); }
-  .atbat-btn:active { transform: translateY(0); }
-  .atbat-btn .icon { font-size: 20px; display: block; margin-bottom: 4px; }
-  .atbat-btn .name { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-  .atbat-btn .effect { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; margin-top: 2px; opacity: 0.7; }
-  .btn-out { border-color: rgba(192,57,43,0.4); } .btn-out:hover { background: rgba(192,57,43,0.2); border-color: #e74c3c; }
-  .btn-so { border-color: rgba(192,57,43,0.6); } .btn-so:hover { background: rgba(192,57,43,0.3); border-color: #e74c3c; }
-  .btn-walk { border-color: rgba(200,162,101,0.4); } .btn-walk:hover { background: rgba(200,162,101,0.15); border-color: var(--dirt); }
-  .btn-single { border-color: rgba(61,189,96,0.3); } .btn-single:hover { background: rgba(61,189,96,0.15); border-color: var(--green-bright); }
-  .btn-double { border-color: rgba(61,189,96,0.5); } .btn-double:hover { background: rgba(61,189,96,0.2); border-color: var(--green-bright); }
-  .btn-triple { border-color: rgba(61,189,96,0.7); } .btn-triple:hover { background: rgba(61,189,96,0.3); border-color: var(--green-bright); }
-  .btn-hr { grid-column: span 3; background: rgba(240,192,64,0.1); border-color: rgba(240,192,64,0.5); }
-  .btn-hr:hover { background: rgba(240,192,64,0.25); border-color: var(--gold); }
-  .btn-hr .name { font-size: 15px; color: var(--gold); }
+  .watcher-banner{background:rgba(61,189,96,0.1);border-bottom:1px solid rgba(61,189,96,0.2);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .watcher-left{display:flex;align-items:center;gap:8px;}
+  .watcher-dot{width:8px;height:8px;border-radius:50%;background:var(--green-bright);animation:blink 1.5s infinite;flex-shrink:0;}
+  .watcher-text{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1px;color:var(--green-bright);}
+  .btn-leave{background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);color:var(--red);border-radius:6px;padding:5px 12px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1px;cursor:pointer;white-space:nowrap;}
 
-  .players-section { padding: 0 16px 16px; }
-  .players-header { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-bottom: 10px; }
-  .player-item { display: flex; align-items: center; padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; background: rgba(0,0,0,0.25); border: 1px solid transparent; transition: all 0.2s; }
-  .player-item.current { background: rgba(240,192,64,0.1); border-color: rgba(240,192,64,0.3); }
-  .player-item.current .player-item-name { color: var(--gold); }
-  .player-order { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--dirt-dark); width: 24px; flex-shrink: 0; }
-  .player-item-name { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; flex: 1; }
-  .cup-icon { font-size: 16px; margin-right: 6px; }
-  .player-item-net { font-family: 'Bebas Neue', sans-serif; font-size: 20px; }
-  .net-pos { color: var(--green-bright); } .net-neg { color: #e74c3c; } .net-zero { color: rgba(255,255,255,0.4); }
+  .holder-section{background:rgba(0,0,0,0.3);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06);}
+  .holder-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--dirt);}
+  .holder-name{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--white);letter-spacing:1px;line-height:1.1;}
+  .balance-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--dirt);text-align:right;}
+  .balance-amount{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;line-height:1.1;}
+  .balance-pos{color:var(--green-bright);} .balance-neg{color:#e74c3c;} .balance-zero{color:var(--cream);}
 
-  .log-section { padding: 0 16px; margin-bottom: 20px; }
-  .log-header { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--dirt); margin-bottom: 10px; }
-  .log-list { max-height: 160px; overflow-y: auto; }
-  .log-item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 6px; margin-bottom: 4px; background: rgba(0,0,0,0.2); font-size: 13px; animation: fadeIn 0.3s ease; }
-  @keyframes fadeIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
-  .log-icon { font-size: 14px; }
-  .log-player { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; }
-  .log-desc { color: rgba(255,255,255,0.6); flex: 1; font-size: 12px; }
-  .log-change { font-family: 'Bebas Neue', sans-serif; font-size: 16px; }
-  .log-pos { color: var(--green-bright); } .log-neg { color: #e74c3c; } .log-neutral { color: var(--dirt); }
+  /* AT-BAT */
+  .atbat-section{padding:16px;}
+  .atbat-label{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:4px;text-transform:uppercase;color:var(--dirt);margin-bottom:12px;text-align:center;}
+  .atbat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;}
+  .atbat-btn{background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 8px;cursor:pointer;transition:all 0.15s;text-align:center;color:var(--cream);}
+  .atbat-btn:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.3);}
+  .atbat-btn:active{transform:translateY(0);}
+  .atbat-btn .icon{font-size:24px;display:block;margin-bottom:4px;}
+  .atbat-btn .name{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+  .atbat-btn .effect{font-family:'Barlow Condensed',sans-serif;font-size:11px;margin-top:2px;opacity:0.7;}
+  .btn-out{border-color:rgba(192,57,43,0.4);} .btn-out:hover{background:rgba(192,57,43,0.2);border-color:#e74c3c;}
+  .btn-so{border-color:rgba(192,57,43,0.6);} .btn-so:hover{background:rgba(192,57,43,0.3);border-color:#e74c3c;}
+  .btn-walk{border-color:rgba(200,162,101,0.4);} .btn-walk:hover{background:rgba(200,162,101,0.15);border-color:var(--dirt);}
+  .btn-single{border-color:rgba(61,189,96,0.3);} .btn-single:hover{background:rgba(61,189,96,0.15);border-color:var(--green-bright);}
+  .btn-double{border-color:rgba(61,189,96,0.5);} .btn-double:hover{background:rgba(61,189,96,0.2);border-color:var(--green-bright);}
+  .btn-triple{border-color:rgba(61,189,96,0.7);} .btn-triple:hover{background:rgba(61,189,96,0.3);border-color:var(--green-bright);}
+  .btn-hr{grid-column:span 3;background:rgba(240,192,64,0.1);border-color:rgba(240,192,64,0.5);}
+  .btn-hr:hover{background:rgba(240,192,64,0.25);border-color:var(--gold);}
+  .btn-hr .name{font-size:15px;color:var(--gold);}
 
-  .undo-row { display: flex; gap: 8px; padding: 0 16px; margin-bottom: 12px; }
-  .btn-undo { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 8px; padding: 8px; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
-  .btn-undo:hover { background: rgba(255,255,255,0.1); color: var(--cream); }
-  .divider { height: 1px; background: rgba(255,255,255,0.07); margin: 4px 16px 16px; }
+  /* PLAYERS */
+  .players-section{padding:0 16px 16px;}
+  .players-header{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--dirt);margin-bottom:10px;}
+  .player-item{display:flex;align-items:center;padding:10px 14px;border-radius:8px;margin-bottom:6px;background:rgba(0,0,0,0.25);border:1px solid transparent;transition:all 0.2s;}
+  .player-item.current{background:rgba(240,192,64,0.1);border-color:rgba(240,192,64,0.3);}
+  .player-item.current .player-item-name{color:var(--gold);}
+  .player-item.left{opacity:0.4;}
+  .player-order{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--dirt-dark);width:24px;flex-shrink:0;}
+  .player-item-name{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;flex:1;}
+  .cup-icon{font-size:16px;margin-right:6px;}
+  .player-item-net{font-family:'Bebas Neue',sans-serif;font-size:20px;}
+  .net-pos{color:var(--green-bright);} .net-neg{color:#e74c3c;} .net-zero{color:rgba(255,255,255,0.4);}
 
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; align-items: center; justify-content: center; }
-  .modal-overlay.show { display: flex; }
-  .modal { background: var(--black); border: 2px solid var(--gold); border-radius: 16px; padding: 32px 28px; text-align: center; max-width: 320px; width: 90%; animation: modalPop 0.3s cubic-bezier(0.34,1.56,0.64,1); }
-  @keyframes modalPop { from{transform:scale(0.7);opacity:0} to{transform:scale(1);opacity:1} }
-  .modal-icon { font-size: 60px; margin-bottom: 12px; }
-  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--gold); letter-spacing: 2px; margin-bottom: 6px; }
-  .modal-sub { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; color: var(--cream); margin-bottom: 6px; }
-  .modal-amount { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--green-bright); margin-bottom: 20px; }
+  /* LOG */
+  .log-section{padding:0 16px;margin-bottom:20px;}
+  .log-header{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--dirt);margin-bottom:10px;}
+  .log-list{max-height:160px;overflow-y:auto;}
+  .log-item{display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:6px;margin-bottom:4px;background:rgba(0,0,0,0.2);font-size:13px;animation:fadeIn 0.3s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+  .log-icon{font-size:14px;}
+  .log-player{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;letter-spacing:0.5px;text-transform:uppercase;}
+  .log-desc{color:rgba(255,255,255,0.6);flex:1;font-size:13px;}
+  .log-change{font-family:'Bebas Neue',sans-serif;font-size:16px;}
+  .log-pos{color:var(--green-bright);} .log-neg{color:#e74c3c;} .log-neutral{color:var(--dirt);}
 
-  .settle-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; background: rgba(0,0,0,0.3); }
-  .settle-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; text-transform: uppercase; }
-  .settle-detail { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
-  .settle-amount { font-family: 'Bebas Neue', sans-serif; font-size: 24px; }
+  .undo-row{display:flex;gap:8px;padding:0 16px;margin-bottom:12px;}
+  .btn-undo{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);border-radius:8px;padding:8px;font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.15s;}
+  .btn-undo:hover{background:rgba(255,255,255,0.1);color:var(--cream);}
+  .divider{height:1px;background:rgba(255,255,255,0.07);margin:4px 16px 16px;}
 
-  .error-msg { background: rgba(192,57,43,0.15); border: 1px solid rgba(192,57,43,0.4); border-radius: 8px; padding: 12px 16px; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; color: #e74c3c; margin-bottom: 12px; display: none; }
-  .error-msg.show { display: block; }
-  .or-divider { text-align: center; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 3px; color: rgba(255,255,255,0.25); margin: 16px 0; text-transform: uppercase; }
+  /* MODALS */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:var(--black);border:2px solid var(--gold);border-radius:16px;padding:32px 28px;text-align:center;max-width:320px;width:90%;animation:modalPop 0.3s cubic-bezier(0.34,1.56,0.64,1);}
+  @keyframes modalPop{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal-icon{font-size:60px;margin-bottom:12px;}
+  .modal-title{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--gold);letter-spacing:2px;margin-bottom:6px;}
+  .modal-sub{font-family:'Barlow Condensed',sans-serif;font-size:16px;color:var(--cream);margin-bottom:6px;}
+  .modal-amount{font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--green-bright);margin-bottom:20px;}
 
-  .setup-note { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; color: rgba(255,255,255,0.4); text-align: center; margin-bottom: 16px; line-height: 1.5; }
-  .setup-note a { color: var(--gold); }
+  /* JOIN IN PROGRESS */
+  .slot-option{display:flex;align-items:center;padding:12px 14px;border-radius:8px;margin-bottom:8px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);cursor:pointer;transition:all 0.15s;gap:12px;}
+  .slot-option:hover{border-color:var(--green-bright);background:rgba(61,189,96,0.1);}
+  .slot-option-num{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--dirt);width:28px;}
+  .slot-option-name{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;flex:1;}
+  .slot-option-status{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--green-bright);}
+
+  /* SETTLE */
+  .settle-item{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:8px;margin-bottom:8px;background:rgba(0,0,0,0.3);}
+  .settle-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;text-transform:uppercase;}
+  .settle-detail{font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;}
+  .settle-amount{font-family:'Bebas Neue',sans-serif;font-size:24px;}
+
+  .error-msg{background:rgba(192,57,43,0.15);border:1px solid rgba(192,57,43,0.4);border-radius:8px;padding:12px 16px;font-family:'Barlow Condensed',sans-serif;font-size:14px;color:#e74c3c;margin-bottom:12px;display:none;}
+  .error-msg.show{display:block;}
+  .or-divider{text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:3px;color:rgba(255,255,255,0.25);margin:16px 0;text-transform:uppercase;}
+  .loading-text{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;color:rgba(255,255,255,0.4);text-align:center;padding:12px;}
+  .auto-badge{display:inline-block;background:rgba(61,189,96,0.15);border:1px solid rgba(61,189,96,0.3);border-radius:20px;padding:2px 10px;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--green-bright);margin-left:6px;vertical-align:middle;}
 </style>
 </head>
 <body>
@@ -147,8 +179,14 @@
     <div class="subtitle">Baseball Betting Game</div>
   </div>
 
-  <!-- HOME -->
+  <!-- ══════════ HOME ══════════ -->
   <div id="screen-home" class="screen active">
+    <div id="rejoin-banner" class="rejoin-banner">
+      <div class="rejoin-title">🍺 Rejoin Your Game</div>
+      <div class="rejoin-info" id="rejoin-info">Room: ------ · You: ------</div>
+      <button class="btn btn-primary" onclick="rejoinGame()" style="margin-bottom:8px;">Rejoin Game →</button>
+      <button class="btn btn-secondary" onclick="clearSession()" style="margin-top:0;font-size:14px;padding:8px;">Clear &amp; Start Fresh</button>
+    </div>
     <div class="card">
       <h2>🍺 Start or Join</h2>
       <button class="btn btn-primary" onclick="showScreen('screen-setup')">Create New Game</button>
@@ -162,17 +200,20 @@
     </div>
   </div>
 
-  <!-- SETUP -->
+  <!-- ══════════ SETUP ══════════ -->
   <div id="screen-setup" class="screen">
     <div class="card">
       <h2>⚾ Game Setup</h2>
+      <label>Select MLB Game (Live / Today)</label>
+      <select id="mlb-game-select">
+        <option value="">Loading today's games...</option>
+      </select>
       <label>Ante Per Player</label>
       <input type="number" id="ante-input" value="5" min="1">
       <label>Players (in order)</label>
       <div id="players-setup-list">
         <div class="player-row"><span class="player-num">1</span><input type="text" class="player-name-input" placeholder="Player 1 name"></div>
         <div class="player-row"><span class="player-num">2</span><input type="text" class="player-name-input" placeholder="Player 2 name"></div>
-        <div class="player-row"><span class="player-num">3</span><input type="text" class="player-name-input" placeholder="Player 3 name"></div>
       </div>
       <button class="btn btn-add" onclick="addPlayerRow()">+ Add Player</button>
       <button class="btn btn-primary" onclick="createGame()">Create Game</button>
@@ -180,24 +221,27 @@
     </div>
     <div class="card" style="margin-top:0">
       <h2>📋 Rules Quick Ref</h2>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;line-height:2;color:rgba(255,255,255,0.8);">
-        <div>☠️ Out → <strong style="color:#e74c3c">$1 in</strong></div>
-        <div>🔀 Fielder's Choice → <strong style="color:#e74c3c">$1 in</strong></div>
-        <div>💀 Double Play → <strong style="color:#e74c3c">$2 in</strong></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;line-height:2;color:rgba(255,255,255,0.8);">
+        <div>☠️ Out / Force Out / Batter Interference → <strong style="color:#e74c3c">$1 in</strong></div>
+        <div>🔀 Fielder's Choice (batter out) → <strong style="color:#e74c3c">$1 in</strong></div>
+        <div>💀 Double Play / FC Out → <strong style="color:#e74c3c">$2 in</strong></div>
         <div>🤚 K Swinging → <strong style="color:#e74c3c">$1 in</strong></div>
         <div>👀 K Looking → <strong style="color:#e74c3c">$2 in</strong></div>
-        <div>🚶 Walk → <strong style="color:var(--dirt)">Push</strong></div>
-        <div>🦅 Sac Fly/Bunt → <strong style="color:var(--dirt)">Push</strong></div>
+        <div>☠️☠️☠️ Triple Play → <strong style="color:#e74c3c">$10 in</strong></div>
+        <div>🚶 Walk / IBB / HBP / Error / Catcher Int. → <strong style="color:var(--dirt)">Push</strong></div>
+        <div>🦅 Sac Fly / Sac Bunt / Sac Fly DP → <strong style="color:var(--dirt)">Push*</strong></div>
+        <div>🔀 Fielder's Choice (batter safe) → <strong style="color:var(--dirt)">Push</strong></div>
         <div>🥎 Single → <strong style="color:var(--green-bright)">$1 out</strong></div>
         <div>✌️ Double → <strong style="color:var(--green-bright)">$2 out</strong></div>
         <div>🔥 Triple → <strong style="color:var(--green-bright)">$3 out</strong></div>
         <div>💥 Home Run → <strong style="color:var(--gold)">Keep everything!</strong></div>
         <div>🏃 RBI → <strong style="color:var(--green-bright)">$1 per RBI</strong> (stacks w/ hit, not HR)</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:4px;">*Sac Fly DP = $1 in (runner thrown out)</div>
       </div>
     </div>
   </div>
 
-  <!-- LOBBY -->
+  <!-- ══════════ LOBBY ══════════ -->
   <div id="screen-lobby" class="screen">
     <div class="card">
       <h2>🍺 Game Lobby</h2>
@@ -214,17 +258,44 @@
     </div>
   </div>
 
-  <!-- GAME -->
+  <!-- ══════════ JOIN IN PROGRESS ══════════ -->
+  <div id="screen-join-progress" class="screen">
+    <div class="card">
+      <h2>🍺 Join Game</h2>
+      <p style="font-family:'Barlow Condensed',sans-serif;font-size:15px;color:rgba(255,255,255,0.7);margin-bottom:16px;">This game is already in progress. Jump in as a new player or join as a spectator.</p>
+      <button class="btn btn-primary" onclick="joinAsNewPlayer()" style="margin-bottom:12px;">🍺 Join as New Player</button>
+      <div id="open-slots-section">
+        <div class="cup-label" style="margin-bottom:8px;">— Or claim an open slot —</div>
+        <div id="slot-list" style="margin-bottom:16px;"></div>
+      </div>
+      <button class="btn btn-secondary" onclick="joinAsSpectator()" style="margin-top:0;">👁 Join as Spectator</button>
+    </div>
+  </div>
+
+  <!-- ══════════ GAME ══════════ -->
   <div id="screen-game" class="screen">
+
     <div class="cup-section">
       <div class="cup-label">🍺 In The Cup</div>
       <div class="cup-amount" id="cup-display">$0</div>
       <div class="round-badge" id="round-badge">Round 1</div>
     </div>
 
+    <!-- MLB live batter strip -->
+    <div class="batter-strip" id="batter-strip" style="display:none;">
+      <div class="live-dot"></div>
+      <div class="batter-strip-label">Now Batting</div>
+      <div class="batter-strip-name" id="batter-name">—</div>
+      <div class="batter-strip-game" id="game-score">—</div>
+    </div>
+
+    <!-- Watcher/spectator banner -->
     <div class="watcher-banner" id="watcher-banner" style="display:none;">
-      <div class="watcher-dot"></div>
-      <div class="watcher-text">WATCHING LIVE — <span id="watcher-name-display"></span></div>
+      <div class="watcher-left">
+        <div class="watcher-dot"></div>
+        <div class="watcher-text" id="watcher-label">WATCHING LIVE</div>
+      </div>
+      <button class="btn-leave" onclick="leaveGame()">Leave Game</button>
     </div>
 
     <div class="holder-section">
@@ -241,19 +312,22 @@
     <!-- Scorekeeper controls -->
     <div id="scorekeeper-controls">
       <div class="atbat-section">
-        <div class="atbat-label">⚾ Record At-Bat Result</div>
+        <div class="atbat-label">⚾ Record At-Bat Result <span class="auto-badge" id="auto-badge" style="display:none;">Auto</span></div>
         <div class="atbat-grid">
-          <button class="atbat-btn btn-out" onclick="recordResult('out')"><span class="icon">☠️</span><span class="name">Out</span><span class="effect" style="color:#e74c3c">+$1 in</span></button>
-          <button class="atbat-btn btn-out" onclick="recordResult('fc')"><span class="icon">🔀</span><span class="name">FC</span><span class="effect" style="color:#e74c3c">+$1 in</span></button>
-          <button class="atbat-btn btn-so" onclick="recordResult('so_swing')"><span class="icon">🤚</span><span class="name">K Swing</span><span class="effect" style="color:#e74c3c">+$1 in</span></button>
-          <button class="atbat-btn btn-so" onclick="recordResult('so_look')"><span class="icon">👀</span><span class="name">K Look</span><span class="effect" style="color:#e74c3c">+$2 in</span></button>
-          <button class="atbat-btn btn-so" onclick="recordResult('dp')"><span class="icon">💀</span><span class="name">Dbl Play</span><span class="effect" style="color:#e74c3c">+$2 in</span></button>
+          <button class="atbat-btn btn-out" onclick="recordResult('field_out')"><span class="icon">☠️</span><span class="name">Out</span><span class="effect" style="color:#e74c3c">+$1 in</span></button>
+          <button class="atbat-btn btn-out" onclick="recordResult('force_out')"><span class="icon">👊</span><span class="name">Force Out</span><span class="effect" style="color:#e74c3c">+$1 in</span></button>
+          <button class="atbat-btn btn-so" onclick="recordResult('strikeout')"><span class="icon">🤚</span><span class="name">K Swing</span><span class="effect" style="color:#e74c3c">+$1 in</span></button>
+          <button class="atbat-btn btn-so" onclick="recordResult('strikeout_looking')"><span class="icon">👀</span><span class="name">K Look</span><span class="effect" style="color:#e74c3c">+$2 in</span></button>
+          <button class="atbat-btn btn-so" onclick="recordResult('double_play')"><span class="icon">💀</span><span class="name">Dbl Play</span><span class="effect" style="color:#e74c3c">+$2 in</span></button>
+          <button class="atbat-btn btn-so" onclick="recordResult('triple_play')"><span class="icon">💀💀💀</span><span class="name">Triple Play</span><span class="effect" style="color:#e74c3c">+$10 in</span></button>
           <button class="atbat-btn btn-walk" onclick="recordResult('walk')"><span class="icon">🚶</span><span class="name">Walk</span><span class="effect">Push</span></button>
-          <button class="atbat-btn btn-walk" onclick="recordResult('sac')"><span class="icon">🦅</span><span class="name">Sac</span><span class="effect">Push</span></button>
+          <button class="atbat-btn btn-walk" onclick="recordResult('sac_fly')"><span class="icon">🦅</span><span class="name">Sac Fly</span><span class="effect">Push</span></button>
+          <button class="atbat-btn btn-walk" onclick="recordResult('fielders_choice')"><span class="icon">🔀</span><span class="name">FC Safe</span><span class="effect">Push</span></button>
+          <button class="atbat-btn btn-out" onclick="recordResult('fielders_choice_out')"><span class="icon">🔀</span><span class="name">FC Out</span><span class="effect" style="color:#e74c3c">+$2 in</span></button>
           <button class="atbat-btn btn-single" onclick="recordResult('single')"><span class="icon">🥎</span><span class="name">Single</span><span class="effect" style="color:var(--green-bright)">-$1 out</span></button>
           <button class="atbat-btn btn-double" onclick="recordResult('double')"><span class="icon">✌️</span><span class="name">Double</span><span class="effect" style="color:var(--green-bright)">-$2 out</span></button>
           <button class="atbat-btn btn-triple" onclick="recordResult('triple')"><span class="icon">🔥</span><span class="name">Triple</span><span class="effect" style="color:var(--green-bright)">-$3 out</span></button>
-          <button class="atbat-btn btn-hr" onclick="recordResult('hr')" style="grid-column:span 3;"><span class="icon">💥</span><span class="name">Home Run — Keep Everything!</span></button>
+          <button class="atbat-btn btn-hr" onclick="recordResult('home_run')" style="grid-column:span 3;"><span class="icon">💥</span><span class="name">Home Run — Keep Everything!</span></button>
         </div>
         <div id="rbi-section" style="margin-top:8px;">
           <div id="rbi-label" class="atbat-label" style="margin-bottom:8px;">🏃 RBIs on this at-bat (stacks with hit)</div>
@@ -266,7 +340,7 @@
       </div>
       <div class="undo-row">
         <button class="btn-undo" onclick="undoLast()">↩ Undo Last</button>
-        <button class="btn-undo" onclick="endGame()" style="color:rgba(240,192,64,0.6);border-color:rgba(240,192,64,0.2);">🏁 End & Settle Up</button>
+        <button class="btn-undo" onclick="endGame()" style="color:rgba(240,192,64,0.6);border-color:rgba(240,192,64,0.2);">🏁 End &amp; Settle Up</button>
       </div>
       <div class="divider"></div>
     </div>
@@ -281,7 +355,7 @@
     </div>
   </div>
 
-  <!-- SETTLE -->
+  <!-- ══════════ SETTLE ══════════ -->
   <div id="screen-settle" class="screen">
     <div class="card">
       <h2>🏁 Game Over — Settle Up</h2>
@@ -304,18 +378,23 @@
   </div>
 </div>
 
-<script>
-// ─── STATE ───────────────────────────────────────────
-let db = null;
-let roomCode = null;
-let isScorekeeper = false;
-let myName = '';
-let gameRef = null;
-let localState = null;
-let lastHRKey = null;
-let playerCount = 3;
+<!-- TRIPLE PLAY MODAL -->
+<div class="modal-overlay" id="tp-modal">
+  <div class="modal">
+    <div class="modal-icon">💀💀💀</div>
+    <div class="modal-title">Triple Play!</div>
+    <div class="modal-sub" id="tp-player-name">Player</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;color:rgba(255,255,255,0.6);font-size:14px;margin-bottom:8px;">puts in</div>
+    <div class="modal-amount" style="color:#e74c3c;">$10</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;color:rgba(255,255,255,0.5);font-size:13px;letter-spacing:1px;margin-bottom:20px;">OUCH.</div>
+    <button class="btn btn-primary" onclick="closeTPModal()">Ouch! ⚾</button>
+  </div>
+</div>
 
-// ─── FIREBASE ────────────────────────────────────────
+<script>
+// ══════════════════════════════════════════════════
+// FIREBASE
+// ══════════════════════════════════════════════════
 function initFirebase() {
   try {
     if (!firebase.apps.length) {
@@ -327,19 +406,206 @@ function initFirebase() {
     }
     db = firebase.database();
     return true;
+  } catch(e) { console.error(e); return false; }
+}
+
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+let db = null, roomCode = null, isScorekeeper = false;
+let myName = '', mySlot = -1, isSpectator = false;
+let gameRef = null, localState = null;
+let lastHRKey = null, lastTPKey = null;
+let playerCount = 2;
+let mlbPollTimer = null;
+let lastProcessedAtBat = null;
+let selectedGameId = null;
+
+// ══════════════════════════════════════════════════
+// SESSION (localStorage)
+// ══════════════════════════════════════════════════
+const SESSION_KEY = 'ptc_session';
+
+function saveSession() {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ roomCode, myName, mySlot, isScorekeeper, isSpectator }));
+}
+
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+  document.getElementById('rejoin-banner').classList.remove('show');
+}
+
+async function rejoinGame() {
+  const s = loadSession();
+  if (!s) return;
+  if (!initFirebase()) return;
+  const snap = await db.ref(`games/${s.roomCode}`).get();
+  if (!snap.exists() || snap.val().status === 'settled') {
+    clearSession();
+    alert('That game has ended.');
+    return;
+  }
+  roomCode = s.roomCode;
+  myName = s.myName;
+  mySlot = s.mySlot;
+  isScorekeeper = s.isScorekeeper;
+  isSpectator = s.isSpectator;
+  setupListener();
+  showScreen('screen-game');
+  if (!isScorekeeper) {
+    document.getElementById('scorekeeper-controls').style.display = 'none';
+    document.getElementById('watcher-banner').style.display = 'flex';
+    document.getElementById('watcher-label').textContent = isSpectator ? 'SPECTATING LIVE' : `WATCHING LIVE — ${myName}`;
+  }
+  if (snap.val().mlbGameId) startMLBPoll(snap.val().mlbGameId);
+}
+
+// ══════════════════════════════════════════════════
+// MLB API
+// ══════════════════════════════════════════════════
+async function loadMLBGames() {
+  const sel = document.getElementById('mlb-game-select');
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=linescore`);
+    const data = await res.json();
+    const games = data.dates?.[0]?.games || [];
+    if (games.length === 0) {
+      sel.innerHTML = '<option value="">No games today</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— No MLB tracking (manual) —</option>';
+    games.forEach(g => {
+      const away = g.teams.away.team.name;
+      const home = g.teams.home.team.name;
+      const status = g.status.detailedState;
+      const awayScore = g.teams.away.score ?? '';
+      const homeScore = g.teams.home.score ?? '';
+      const scoreStr = (awayScore !== '' && homeScore !== '') ? ` (${awayScore}-${homeScore})` : '';
+      sel.innerHTML += `<option value="${g.gamePk}">${away} @ ${home}${scoreStr} — ${status}</option>`;
+    });
   } catch(e) {
-    console.error(e);
-    return false;
+    sel.innerHTML = '<option value="">Could not load games</option>';
   }
 }
 
-// ─── ROOM CODE ───────────────────────────────────────
-function generateCode() {
-  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({length:6}, () => c[Math.floor(Math.random()*c.length)]).join('');
+function startMLBPoll(gameId) {
+  if (!gameId) return;
+  selectedGameId = gameId;
+  if (mlbPollTimer) clearInterval(mlbPollTimer);
+  pollMLB();
+  mlbPollTimer = setInterval(pollMLB, 15000);
 }
 
-// ─── SETUP ───────────────────────────────────────────
+async function pollMLB() {
+  if (!selectedGameId) return;
+  try {
+    const res = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${selectedGameId}/feed/live`);
+    const data = await res.json();
+    const live = data.liveData;
+    if (!live) return;
+
+    // Current batter
+    const currentPlay = live.plays?.currentPlay;
+    const batterName = currentPlay?.matchup?.batter?.fullName;
+    const inning = currentPlay?.about?.inning;
+    const half = currentPlay?.about?.halfInning === 'top' ? '▲' : '▼';
+    const awayScore = data.liveData?.linescore?.teams?.away?.runs ?? 0;
+    const homeScore = data.liveData?.linescore?.teams?.home?.runs ?? 0;
+    const awayName = data.gameData?.teams?.away?.abbreviation || '';
+    const homeAbbr = data.gameData?.teams?.home?.abbreviation || '';
+
+    // Current count
+    const balls = currentPlay?.count?.balls ?? 0;
+    const strikes = currentPlay?.count?.strikes ?? 0;
+
+    if (batterName) {
+      document.getElementById('batter-strip').style.display = 'flex';
+      document.getElementById('batter-name').innerHTML = `${batterName} <span style="color:var(--dirt);font-size:18px;letter-spacing:2px;">${balls}-${strikes}</span>`;
+      document.getElementById('game-score').textContent = `${half}${inning} · ${awayName} ${awayScore} - ${homeAbbr} ${homeScore}`;
+    }
+
+    // Auto-record completed at-bats (scorekeeper only)
+    if (!isScorekeeper) return;
+    const allPlays = live.plays?.allPlays || [];
+    const lastCompleted = [...allPlays].reverse().find(p => p.about?.isComplete);
+    if (!lastCompleted) return;
+    const atBatIndex = lastCompleted.about?.atBatIndex;
+    if (atBatIndex === lastProcessedAtBat) return;
+    lastProcessedAtBat = atBatIndex;
+
+    const event = lastCompleted.result?.eventType;
+    const rbi = lastCompleted.result?.rbi || 0;
+    if (!event) return;
+
+    // Map MLB event to our game result
+    const mapped = MLB_EVENT_MAP[event];
+    if (!mapped) return;
+
+    // Auto-record
+    recordResult(mapped, true);
+    // Stack RBIs if applicable and not a HR
+    if (rbi > 0 && mapped !== 'home_run' && rbi <= 3) {
+      setTimeout(() => recordRBI(rbi, true), 300);
+    }
+  } catch(e) {
+    console.warn('MLB poll error:', e);
+  }
+}
+
+// MLB event type → our internal result key
+const MLB_EVENT_MAP = {
+  'strikeout':                   'strikeout',
+  'strikeout_looking':           'strikeout_looking',
+  'walk':                        'walk',
+  'intent_walk':                 'walk',
+  'hit_by_pitch':                'walk',
+  'field_error':                 'walk',
+  'catcher_interf':              'walk',
+  'batter_interference':         'field_out',
+  'fielders_choice':             'fielders_choice',
+  'fielders_choice_out':         'fielders_choice_out',
+  'field_out':                   'field_out',
+  'force_out':                   'force_out',
+  'grounded_into_double_play':   'double_play',
+  'double_play':                 'double_play',
+  'sac_fly_double_play':         'field_out',
+  'sac_fly':                     'sac_fly',
+  'sac_bunt':                    'sac_fly',
+  'triple_play':                 'triple_play',
+  'single':                      'single',
+  'double':                      'double',
+  'triple':                      'triple',
+  'home_run':                    'home_run',
+};
+
+// ══════════════════════════════════════════════════
+// RESULT DEFINITIONS
+// ══════════════════════════════════════════════════
+const R = {
+  field_out:           { icon:'☠️',   delta:+1,  dir:'in',   desc:'put $1 in the cup' },
+  force_out:           { icon:'👊',   delta:+1,  dir:'in',   desc:'put $1 in (force out)' },
+  strikeout:           { icon:'🤚',   delta:+1,  dir:'in',   desc:'put $1 in (K swinging)' },
+  strikeout_looking:   { icon:'👀',   delta:+2,  dir:'in',   desc:'put $2 in (K looking)' },
+  double_play:         { icon:'💀',   delta:+2,  dir:'in',   desc:'put $2 in (double play)' },
+  fielders_choice_out: { icon:'🔀',   delta:+2,  dir:'in',   desc:'put $2 in (FC out)' },
+  triple_play:         { icon:'💀💀💀', delta:+10, dir:'in',   desc:'put $10 in (TRIPLE PLAY!!)' },
+  walk:                { icon:'🚶',   delta:0,   dir:'push', desc:'push — nothing' },
+  sac_fly:             { icon:'🦅',   delta:0,   dir:'push', desc:'push — sac fly/bunt' },
+  fielders_choice:     { icon:'🔀',   delta:0,   dir:'push', desc:"push — fielder's choice (safe)" },
+  single:              { icon:'🥎',   delta:-1,  dir:'out',  desc:'took $1 from the cup' },
+  double:              { icon:'✌️',   delta:-2,  dir:'out',  desc:'took $2 from the cup' },
+  triple:              { icon:'🔥',   delta:-3,  dir:'out',  desc:'took $3 from the cup' },
+  home_run:            { icon:'💥',   delta:0,   dir:'hr',   desc:'HOME RUN — kept the cup!' },
+};
+
+// ══════════════════════════════════════════════════
+// SETUP
+// ══════════════════════════════════════════════════
 function addPlayerRow() {
   playerCount++;
   const list = document.getElementById('players-setup-list');
@@ -355,38 +621,41 @@ function removePlayerRow(btn) {
 }
 
 async function createGame() {
-  const ante   = parseFloat(document.getElementById('ante-input').value) || 5;
+  const ante = parseFloat(document.getElementById('ante-input').value) || 5;
   const inputs = document.querySelectorAll('.player-name-input');
-  const players = Array.from(inputs).map((inp,i) => ({ name: inp.value.trim() || `Player ${i+1}`, net: 0 }));
+  const players = Array.from(inputs).map((inp,i) => ({
+    name: inp.value.trim() || `Player ${i+1}`,
+    net: 0,
+    claimed: i === 0,
+    left: false
+  }));
   if (players.length < 2) { alert('Add at least 2 players!'); return; }
+  if (!initFirebase()) { alert('Could not connect.'); return; }
 
-  if (!initFirebase()) { alert('Could not connect. Please try again.'); return; }
-
+  const mlbGameId = document.getElementById('mlb-game-select').value || null;
   roomCode = generateCode();
-  isScorekeeper = true;
+  isScorekeeper = true; myName = players[0].name; mySlot = 0;
 
   const init = {
     players, ante,
     cupAmount: players.length * ante,
     currentHolderIndex: 0,
-    round: 1,
-    log: [],
+    round: 1, log: [],
     lastResultWasHR: false,
-    lastHRWinner: null,
-    lastHRAmount: 0,
-    lastHRRound: 0,
+    lastHRWinner: null, lastHRAmount: 0, lastHRRound: 0,
+    lastTPPlayer: null, lastTPRound: 0,
     undoSnapshot: null,
     status: 'lobby',
-    watchers: {}
+    watchers: {},
+    mlbGameId
   };
 
   await db.ref(`games/${roomCode}`).set(init);
+  saveSession();
 
   document.getElementById('lobby-code').textContent = roomCode;
-  const link = `${location.origin}${location.pathname}?room=${roomCode}`;
-  document.getElementById('share-link').value = link;
+  document.getElementById('share-link').value = `${location.origin}${location.pathname}?room=${roomCode}`;
   showScreen('screen-lobby');
-
   db.ref(`games/${roomCode}/watchers`).on('value', snap => renderLobbyPlayers(snap.val() || {}));
 }
 
@@ -394,29 +663,123 @@ async function joinGame() {
   const code = document.getElementById('join-code-input').value.trim().toUpperCase();
   const name = document.getElementById('join-name-input').value.trim() || 'Player';
   if (code.length < 6) { showErr('join-error','Enter the 6-digit room code.'); return; }
-
   if (!initFirebase()) { showErr('join-error','Could not connect.'); return; }
 
   const snap = await db.ref(`games/${code}`).get();
   if (!snap.exists()) { showErr('join-error','Room not found. Check the code.'); return; }
 
-  roomCode = code; isScorekeeper = false; myName = name;
-  const watcherId = db.ref(`games/${roomCode}/watchers`).push().key;
-  await db.ref(`games/${roomCode}/watchers/${watcherId}`).set({ name });
-
+  roomCode = code; myName = name;
   const data = snap.val();
-  if (data.status === 'playing') {
-    launchWatcherView();
-  } else {
+
+  if (data.status === 'lobby') {
+    // Find open slot
+    const nextSlot = data.players.findIndex(p => !p.claimed);
+    if (nextSlot === -1) {
+      // All slots taken — join as spectator
+      await joinAsSpectatorDirect(data);
+      return;
+    }
+    mySlot = nextSlot; isScorekeeper = false; isSpectator = false;
+    await db.ref(`games/${roomCode}/players/${nextSlot}`).update({ name, claimed: true });
+    const wId = db.ref(`games/${roomCode}/watchers`).push().key;
+    await db.ref(`games/${roomCode}/watchers/${wId}`).set({ name, slot: nextSlot });
+    saveSession();
+
     document.getElementById('lobby-code').textContent = roomCode;
     document.getElementById('share-link').value = `${location.origin}${location.pathname}?room=${roomCode}`;
     document.getElementById('start-game-btn').style.display = 'none';
     showScreen('screen-lobby');
     db.ref(`games/${roomCode}/watchers`).on('value', snap => renderLobbyPlayers(snap.val() || {}));
-    db.ref(`games/${roomCode}/status`).on('value', snap => {
-      if (snap.val() === 'playing') launchWatcherView();
-    });
+    db.ref(`games/${roomCode}/status`).on('value', snap => { if (snap.val() === 'playing') launchWatcherView(); });
+
+  } else if (data.status === 'playing') {
+    // Always show join-in-progress screen
+    const openSlots = data.players.map((p,i) => ({...p, i})).filter(p => !p.claimed && !p.left);
+    showScreen('screen-join-progress');
+    if (openSlots.length > 0) {
+      document.getElementById('open-slots-section').style.display = 'block';
+      document.getElementById('slot-list').innerHTML = openSlots.map(p =>
+        `<div class="slot-option" onclick="claimSlot(${p.i})">
+          <span class="slot-option-num">${p.i+1}</span>
+          <span class="slot-option-name">${p.name}</span>
+          <span class="slot-option-status">Open</span>
+        </div>`
+      ).join('');
+    } else {
+      document.getElementById('open-slots-section').style.display = 'none';
+    }
+  } else {
+    showErr('join-error','That game has already ended.');
   }
+}
+
+async function claimSlot(slotIndex) {
+  mySlot = slotIndex; isScorekeeper = false; isSpectator = false;
+  await db.ref(`games/${roomCode}/players/${slotIndex}`).update({ name: myName, claimed: true });
+  const wId = db.ref(`games/${roomCode}/watchers`).push().key;
+  await db.ref(`games/${roomCode}/watchers/${wId}`).set({ name: myName, slot: slotIndex });
+  saveSession();
+  launchWatcherView();
+  const snap = await db.ref(`games/${roomCode}/mlbGameId`).get();
+  if (snap.val()) startMLBPoll(snap.val());
+}
+
+async function joinAsNewPlayer() {
+  if (!initFirebase()) return;
+  const snap = await db.ref(`games/${roomCode}`).get();
+  const data = snap.val();
+
+  // Insert new player just before the current holder
+  const insertAt = data.currentHolderIndex;
+  const newPlayer = { name: myName, net: -data.ante, claimed: true, left: false };
+
+  // Splice into the players array
+  const players = [...data.players];
+  players.splice(insertAt, 0, newPlayer);
+
+  // Current holder index shifts up by 1 since we inserted before it
+  const newHolderIndex = data.currentHolderIndex + 1;
+
+  // Ante goes into the cup
+  const newCupAmount = data.cupAmount + data.ante;
+
+  // Build updated log
+  const s = JSON.parse(JSON.stringify(data));
+  s.players = players;
+  s.cupAmount = newCupAmount;
+  s.currentHolderIndex = newHolderIndex;
+  pushLog(s, myName, '🍺', `joined mid-game & paid $${data.ante} ante`, -data.ante, 'neg');
+
+  await db.ref(`games/${roomCode}`).update({
+    players,
+    cupAmount: newCupAmount,
+    currentHolderIndex: newHolderIndex,
+    log: s.log
+  });
+
+  const wId = db.ref(`games/${roomCode}/watchers`).push().key;
+  await db.ref(`games/${roomCode}/watchers/${wId}`).set({ name: myName, slot: insertAt });
+
+  mySlot = insertAt; isScorekeeper = false; isSpectator = false;
+  saveSession();
+  launchWatcherView();
+  if (data.mlbGameId) startMLBPoll(data.mlbGameId);
+}
+
+
+  const snap = await db.ref(`games/${roomCode}`).get();
+  await joinAsSpectatorDirect(snap.val());
+}
+
+async function joinAsSpectatorDirect(data) {
+  isSpectator = true; isScorekeeper = false; mySlot = -1;
+  saveSession();
+  setupListener();
+  showScreen('screen-game');
+  document.getElementById('scorekeeper-controls').style.display = 'none';
+  document.getElementById('watcher-banner').style.display = 'flex';
+  document.getElementById('watcher-label').textContent = `SPECTATING — ${myName}`;
+  if (data.mlbGameId) startMLBPoll(data.mlbGameId);
 }
 
 function renderLobbyPlayers(watchers) {
@@ -432,6 +795,12 @@ async function startGame() {
   await db.ref(`games/${roomCode}/status`).set('playing');
   setupListener();
   showScreen('screen-game');
+  // Show auto badge if MLB game selected
+  const snap = await db.ref(`games/${roomCode}/mlbGameId`).get();
+  if (snap.val()) {
+    document.getElementById('auto-badge').style.display = 'inline-block';
+    startMLBPoll(snap.val());
+  }
 }
 
 function launchWatcherView() {
@@ -439,10 +808,25 @@ function launchWatcherView() {
   showScreen('screen-game');
   document.getElementById('scorekeeper-controls').style.display = 'none';
   document.getElementById('watcher-banner').style.display = 'flex';
-  document.getElementById('watcher-name-display').textContent = myName;
+  document.getElementById('watcher-label').textContent = `WATCHING LIVE — ${myName}`;
 }
 
-// ─── REAL-TIME LISTENER ──────────────────────────────
+async function leaveGame() {
+  if (!confirm('Leave this game? Your balance will stay for settle-up.')) return;
+  if (mySlot >= 0) {
+    await db.ref(`games/${roomCode}/players/${mySlot}`).update({ left: true });
+  }
+  if (mlbPollTimer) clearInterval(mlbPollTimer);
+  if (gameRef) gameRef.off();
+  clearSession();
+  roomCode = null; isScorekeeper = false; myName = ''; mySlot = -1;
+  localState = null; lastHRKey = null; lastTPKey = null;
+  showScreen('screen-home');
+}
+
+// ══════════════════════════════════════════════════
+// LISTENER
+// ══════════════════════════════════════════════════
 function setupListener() {
   gameRef = db.ref(`games/${roomCode}`);
   gameRef.on('value', snap => {
@@ -450,9 +834,10 @@ function setupListener() {
     const s = snap.val();
     localState = s;
     renderGame(s);
-    // Show HR modal on all devices
+
+    // HR modal
     if (s.lastResultWasHR && s.lastHRWinner) {
-      const key = `${s.lastHRWinner}-${s.lastHRRound}`;
+      const key = `hr-${s.lastHRWinner}-${s.lastHRRound}`;
       if (lastHRKey !== key) {
         lastHRKey = key;
         document.getElementById('hr-winner-name').textContent = s.lastHRWinner;
@@ -460,33 +845,33 @@ function setupListener() {
         document.getElementById('hr-modal').classList.add('show');
       }
     }
+
+    // Triple play modal
+    if (s.lastTPPlayer && s.lastTPRound) {
+      const key = `tp-${s.lastTPPlayer}-${s.lastTPRound}`;
+      if (lastTPKey !== key) {
+        lastTPKey = key;
+        document.getElementById('tp-player-name').textContent = s.lastTPPlayer;
+        document.getElementById('tp-modal').classList.add('show');
+      }
+    }
+
     if (s.status === 'settled') { renderSettle(s); showScreen('screen-settle'); }
   });
 }
 
-// ─── RESULTS ─────────────────────────────────────────
-const R = {
-  out:      { icon:'☠️',  delta:+1, dir:'in',   desc:'put $1 in the cup' },
-  fc:       { icon:'🔀',  delta:+1, dir:'in',   desc:"put $1 in (fielder's choice)" },
-  so_swing: { icon:'🤚',  delta:+1, dir:'in',   desc:'put $1 in (K swinging)' },
-  so_look:  { icon:'👀',  delta:+2, dir:'in',   desc:'put $2 in (K looking)' },
-  dp:       { icon:'💀',  delta:+2, dir:'in',   desc:'put $2 in (double play)' },
-  walk:     { icon:'🚶',  delta:0,  dir:'push', desc:'push — nothing' },
-  sac:      { icon:'🦅',  delta:0,  dir:'push', desc:'push — sac fly/bunt' },
-  single:   { icon:'🥎',  delta:-1, dir:'out',  desc:'took $1 from the cup' },
-  double:   { icon:'✌️',  delta:-2, dir:'out',  desc:'took $2 from the cup' },
-  triple:   { icon:'🔥',  delta:-3, dir:'out',  desc:'took $3 from the cup' },
-  hr:       { icon:'💥',  delta:0,  dir:'hr',   desc:'HOME RUN — kept the cup!' },
-};
-
-function recordResult(type) {
+// ══════════════════════════════════════════════════
+// GAME LOGIC
+// ══════════════════════════════════════════════════
+function recordResult(type, auto = false) {
   if (!isScorekeeper || !localState) return;
   const r = R[type];
+  if (!r) return;
   const s = JSON.parse(JSON.stringify(localState));
   s.undoSnapshot = JSON.stringify(localState);
   const holder = s.players[s.currentHolderIndex];
 
-  if (type === 'hr') {
+  if (type === 'home_run') {
     const won = s.cupAmount;
     holder.net += won;
     s.lastResultWasHR = true;
@@ -496,7 +881,15 @@ function recordResult(type) {
     pushLog(s, holder.name, r.icon, r.desc, won, 'gold');
     s.round++;
     s.cupAmount = s.players.length * s.ante;
-    s.currentHolderIndex = (s.currentHolderIndex + 1) % s.players.length;
+    s.currentHolderIndex = nextActiveHolder(s, s.currentHolderIndex);
+  } else if (type === 'triple_play') {
+    s.lastResultWasHR = false;
+    s.cupAmount += r.delta;
+    holder.net -= r.delta;
+    s.lastTPPlayer = holder.name;
+    s.lastTPRound = s.round;
+    pushLog(s, holder.name, r.icon, r.desc, -r.delta, 'neg');
+    s.currentHolderIndex = nextActiveHolder(s, s.currentHolderIndex);
   } else {
     s.lastResultWasHR = false;
     if (r.dir === 'in') {
@@ -511,12 +904,24 @@ function recordResult(type) {
     } else {
       pushLog(s, holder.name, r.icon, r.desc, 0, 'neutral');
     }
-    s.currentHolderIndex = (s.currentHolderIndex + 1) % s.players.length;
+    s.currentHolderIndex = nextActiveHolder(s, s.currentHolderIndex);
   }
+
   db.ref(`games/${roomCode}`).update(s);
 }
 
-function recordRBI(count) {
+function nextActiveHolder(s, currentIdx) {
+  // Skip players who have left
+  let next = (currentIdx + 1) % s.players.length;
+  let attempts = 0;
+  while (s.players[next].left && attempts < s.players.length) {
+    next = (next + 1) % s.players.length;
+    attempts++;
+  }
+  return next;
+}
+
+function recordRBI(count, auto = false) {
   if (!isScorekeeper || !localState) return;
   const s = JSON.parse(JSON.stringify(localState));
   s.undoSnapshot = JSON.stringify(localState);
@@ -529,7 +934,7 @@ function recordRBI(count) {
 }
 
 function pushLog(s, name, icon, desc, amount, type) {
-  s.log = [{ playerName:name, icon, desc, amount, type }, ...(s.log||[])].slice(0, 30);
+  s.log = [{ playerName:name, icon, desc, amount, type }, ...(s.log||[])].slice(0,30);
 }
 
 function undoLast() {
@@ -538,20 +943,29 @@ function undoLast() {
 }
 
 function closeHRModal() { document.getElementById('hr-modal').classList.remove('show'); }
+function closeTPModal() { document.getElementById('tp-modal').classList.remove('show'); }
 
 function endGame() {
   if (!isScorekeeper) return;
   if (!confirm('End the game and settle up?')) return;
+  if (mlbPollTimer) clearInterval(mlbPollTimer);
   db.ref(`games/${roomCode}/status`).set('settled');
+  clearSession();
 }
 
 function resetGame() {
   if (gameRef) gameRef.off();
-  roomCode=null; isScorekeeper=false; myName=''; localState=null; lastHRKey=null;
+  if (mlbPollTimer) clearInterval(mlbPollTimer);
+  roomCode=null; isScorekeeper=false; myName=''; mySlot=-1;
+  isSpectator=false; localState=null; lastHRKey=null; lastTPKey=null;
+  lastProcessedAtBat=null; selectedGameId=null;
+  clearSession();
   showScreen('screen-home');
 }
 
-// ─── RENDER ──────────────────────────────────────────
+// ══════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════
 function renderGame(s) {
   // Cup
   const cupEl = document.getElementById('cup-display');
@@ -564,7 +978,7 @@ function renderGame(s) {
   }
   document.getElementById('round-badge').textContent = `Round ${s.round}`;
 
-  // RBI state
+  // RBI buttons
   const rbiSec = document.getElementById('rbi-section');
   const rbiLbl = document.getElementById('rbi-label');
   rbiSec.style.opacity = s.lastResultWasHR ? '0.35' : '1';
@@ -584,10 +998,12 @@ function renderGame(s) {
     const cur = i === s.currentHolderIndex;
     const n = p.net, ns = (n>=0?'+':'') + `$${fmt(Math.abs(n))}`;
     const nc = n>0?'net-pos':n<0?'net-neg':'net-zero';
-    return `<div class="player-item ${cur?'current':''}">
+    const leftClass = p.left ? 'left' : '';
+    const leftBadge = p.left ? ' <span style="font-size:11px;color:rgba(255,255,255,0.3);">LEFT</span>' : '';
+    return `<div class="player-item ${cur?'current':''} ${leftClass}">
       <span class="player-order">${i+1}</span>
       ${cur?'<span class="cup-icon">🍺</span>':''}
-      <span class="player-item-name">${p.name}</span>
+      <span class="player-item-name">${p.name}${leftBadge}</span>
       <span class="player-item-net ${nc}">${ns}</span>
     </div>`;
   }).join('');
@@ -601,19 +1017,32 @@ function renderGame(s) {
 }
 
 function renderSettle(s) {
-  const rows = s.players.map(p=>({name:p.name,net:p.net-s.ante})).sort((a,b)=>b.net-a.net);
+  const rows = s.players.map(p=>({name:p.name, net:p.net-s.ante, left:p.left})).sort((a,b)=>b.net-a.net);
   document.getElementById('settle-list').innerHTML = rows.map(p => {
     const cl = p.net>0?'net-pos':p.net<0?'net-neg':'net-zero';
     const str = (p.net>=0?'+':'') + `$${fmt(Math.abs(p.net))}`;
     const lbl = p.net>0?'💰 Wins':p.net<0?'💸 Owes':'😐 Even';
-    return `<div class="settle-item"><div><div class="settle-name">${p.name}</div><div class="settle-detail">${lbl}</div></div><div class="settle-amount ${cl}">${str}</div></div>`;
+    const leftNote = p.left ? ' · Left early' : '';
+    return `<div class="settle-item"><div><div class="settle-name">${p.name}</div><div class="settle-detail">${lbl}${leftNote}</div></div><div class="settle-amount ${cl}">${str}</div></div>`;
   }).join('');
 }
 
-// ─── UTILS ───────────────────────────────────────────
+// ══════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════
 function fmt(n) { return Number(n).toFixed(2).replace(/\.00$/,''); }
-function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-function showErr(id, msg) { const el=document.getElementById(id); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),4000); }
+function generateCode() {
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6},()=>c[Math.floor(Math.random()*c.length)]).join('');
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showErr(id, msg) {
+  const el=document.getElementById(id); el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),4000);
+}
 function copyLink() {
   navigator.clipboard.writeText(document.getElementById('share-link').value).then(()=>{
     const btn=document.getElementById('copy-btn'); btn.textContent='Copied!';
@@ -621,10 +1050,23 @@ function copyLink() {
   });
 }
 
-// Auto-fill room code from URL param
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
 window.addEventListener('load', () => {
+  // Auto-fill room code from URL
   const r = new URLSearchParams(location.search).get('room');
   if (r) document.getElementById('join-code-input').value = r.toUpperCase();
+
+  // Check for saved session
+  const s = loadSession();
+  if (s) {
+    document.getElementById('rejoin-info').textContent = `Room: ${s.roomCode} · You: ${s.myName}`;
+    document.getElementById('rejoin-banner').classList.add('show');
+  }
+
+  // Load MLB games for setup screen
+  loadMLBGames();
 });
 </script>
 </body>
