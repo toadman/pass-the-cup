@@ -279,7 +279,7 @@
       <div class="round-badge" id="round-badge">Round 1</div>
     </div>
 
-    <!-- MLB live batter strip -->
+  <!-- MLB live batter strip — always visible once game starts -->
     <div class="batter-strip" id="batter-strip" style="display:none;">
       <div class="live-dot"></div>
       <div class="batter-strip-label">Now Batting</div>
@@ -502,6 +502,13 @@ function startMLBPoll(gameId) {
   if (!gameId) return;
   selectedGameId = gameId;
   if (mlbPollTimer) clearInterval(mlbPollTimer);
+
+  // Show strip immediately with loading state
+  var strip = document.getElementById('batter-strip');
+  strip.style.display = 'flex';
+  document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">Connecting...</span>';
+  document.getElementById('game-score').textContent = '— Loading —';
+
   pollMLB();
   mlbPollTimer = setInterval(pollMLB, 5000);
 }
@@ -576,6 +583,12 @@ async function pollMLB() {
     }
   } catch(e) {
     console.warn('MLB poll error:', e);
+    // Keep strip visible but show error state
+    var strip = document.getElementById('batter-strip');
+    if (strip) {
+      strip.style.display = 'flex';
+      document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">Updating...</span>';
+    }
   }
 }
 
