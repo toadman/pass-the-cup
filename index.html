@@ -503,7 +503,7 @@ function startMLBPoll(gameId) {
   selectedGameId = gameId;
   if (mlbPollTimer) clearInterval(mlbPollTimer);
   pollMLB();
-  mlbPollTimer = setInterval(pollMLB, 15000);
+  mlbPollTimer = setInterval(pollMLB, 5000);
 }
 
 async function pollMLB() {
@@ -518,8 +518,12 @@ async function pollMLB() {
     const currentPlay = (live.plays && live.plays.currentPlay) ? live.plays.currentPlay : null;
     const batterName = currentPlay && currentPlay.matchup && currentPlay.matchup.batter
       ? currentPlay.matchup.batter.fullName : null;
-    const inning = currentPlay && currentPlay.about ? currentPlay.about.inning : '?';
-    const halfInning = currentPlay && currentPlay.about ? currentPlay.about.halfInning : '';
+    const inning = (currentPlay && currentPlay.about && currentPlay.about.inning)
+      ? currentPlay.about.inning
+      : (linescore.currentInning ? linescore.currentInning : '?');
+    const halfInning = (currentPlay && currentPlay.about && currentPlay.about.halfInning)
+      ? currentPlay.about.halfInning
+      : (linescore.inningHalf ? linescore.inningHalf.toLowerCase() : 'bottom');
     const half = halfInning === 'top' ? '▲' : '▼';
 
     const linescore = live.linescore || {};
