@@ -524,7 +524,7 @@ async function pollMLB() {
   if (!selectedGameId) return;
   try {
     var ts = '&_=' + Date.now();
-    var mlbUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live?fields=gameData,status,abstractGameState,teams,abbreviation,liveData,plays,currentPlay,allPlays,about,isComplete,atBatIndex,halfInning,inning,matchup,batter,fullName,count,balls,strikes,result,eventType,rbi,linescore,currentInning,inningHalf,teams,runs' + ts;
+    var mlbUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live?fields=gameData,status,abstractGameState,teams,abbreviation,liveData,plays,currentPlay,allPlays,about,isComplete,atBatIndex,halfInning,inning,matchup,batter,fullName,count,balls,strikes,result,eventType,rbi,description,linescore,currentInning,inningHalf,teams,runs,hits,errors' + ts;
     var PROXY = 'https://corsproxy.io/?';
     var res, data;
 
@@ -571,8 +571,11 @@ async function pollMLB() {
 
     var awayTeams = linescore.teams && linescore.teams.away ? linescore.teams.away : {};
     var homeTeams = linescore.teams && linescore.teams.home ? linescore.teams.home : {};
-    var awayScore = awayTeams.runs !== undefined ? awayTeams.runs : 0;
-    var homeScore = homeTeams.runs !== undefined ? homeTeams.runs : 0;
+    // Try linescore runs first, fall back to gameData
+    var awayScore = awayTeams.runs !== undefined ? awayTeams.runs
+      : (data.gameData && data.gameData.teams && data.gameData.teams.away && data.gameData.teams.away.score !== undefined ? data.gameData.teams.away.score : '?');
+    var homeScore = homeTeams.runs !== undefined ? homeTeams.runs
+      : (data.gameData && data.gameData.teams && data.gameData.teams.home && data.gameData.teams.home.score !== undefined ? data.gameData.teams.home.score : '?');
     var awayAbbr = data.gameData && data.gameData.teams && data.gameData.teams.away
       ? data.gameData.teams.away.abbreviation : '';
     var homeAbbr = data.gameData && data.gameData.teams && data.gameData.teams.home
@@ -603,12 +606,14 @@ async function pollMLB() {
 
     var event = lastCompleted.result ? lastCompleted.result.eventType : null;
     var rbi = lastCompleted.result ? (lastCompleted.result.rbi || 0) : 0;
+    var mlbDesc = lastCompleted.result ? lastCompleted.result.description : null;
+    var mlbBatter = lastCompleted.matchup && lastCompleted.matchup.batter ? lastCompleted.matchup.batter.fullName : null;
     if (!event) return;
 
     var mapped = MLB_EVENT_MAP[event];
     if (!mapped) return;
 
-    recordResult(mapped, true);
+    recordResult(mapped, mlbBatter, mlbDesc);
     if (rbi > 0 && mapped !== 'home_run' && rbi <= 3) {
       setTimeout(function() { recordRBI(rbi, true); }, 300);
     }
@@ -945,13 +950,16 @@ function setupListener() {
 // ══════════════════════════════════════════════════
 // GAME LOGIC
 // ══════════════════════════════════════════════════
-function recordResult(type, auto = false) {
+function recordResult(type, mlbBatter, mlbDesc) {
   if (!isScorekeeper || !localState) return;
   const r = R[type];
   if (!r) return;
   const s = JSON.parse(JSON.stringify(localState));
   s.undoSnapshot = JSON.stringify(localState);
   const holder = s.players[s.currentHolderIndex];
+
+  // Build log description — use MLB play description if available
+  var logDesc = mlbDesc ? mlbDesc : r.desc;
 
   if (type === 'home_run') {
     const won = s.cupAmount;
@@ -960,7 +968,7 @@ function recordResult(type, auto = false) {
     s.lastHRWinner = holder.name;
     s.lastHRAmount = won;
     s.lastHRRound = s.round;
-    pushLog(s, holder.name, r.icon, r.desc, won, 'gold');
+    pushLog(s, holder.name, r.icon, logDesc, won, 'gold');
     s.round++;
     s.cupAmount = s.players.length * s.ante;
     s.currentHolderIndex = nextActiveHolder(s, s.currentHolderIndex);
@@ -970,21 +978,21 @@ function recordResult(type, auto = false) {
     holder.net -= r.delta;
     s.lastTPPlayer = holder.name;
     s.lastTPRound = s.round;
-    pushLog(s, holder.name, r.icon, r.desc, -r.delta, 'neg');
+    pushLog(s, holder.name, r.icon, logDesc, -r.delta, 'neg');
     s.currentHolderIndex = nextActiveHolder(s, s.currentHolderIndex);
   } else {
     s.lastResultWasHR = false;
     if (r.dir === 'in') {
       s.cupAmount += r.delta;
       holder.net -= r.delta;
-      pushLog(s, holder.name, r.icon, r.desc, -r.delta, 'neg');
+      pushLog(s, holder.name, r.icon, logDesc, -r.delta, 'neg');
     } else if (r.dir === 'out') {
       const take = Math.min(Math.abs(r.delta), s.cupAmount);
       s.cupAmount -= take;
       holder.net += take;
-      pushLog(s, holder.name, r.icon, r.desc, take, 'pos');
+      pushLog(s, holder.name, r.icon, logDesc, take, 'pos');
     } else {
-      pushLog(s, holder.name, r.icon, r.desc, 0, 'neutral');
+      pushLog(s, holder.name, r.icon, logDesc, 0, 'neutral');
     }
     s.currentHolderIndex = nextActiveHolder(s, s.currentHolderIndex);
   }
