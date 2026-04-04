@@ -521,7 +521,14 @@ async function pollMLB() {
     const res = await fetch(PROXY + encodeURIComponent('https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live'));
     const data = await res.json();
     const live = data.liveData;
-    if (!live) return;
+
+    // Debug — show raw response info in the strip
+    document.getElementById('batter-strip').style.display = 'flex';
+    if (!live) {
+      document.getElementById('batter-name').innerHTML = '<span style="color:red;">No liveData in response</span>';
+      document.getElementById('game-score').textContent = 'Keys: ' + Object.keys(data).join(', ');
+      return;
+    }
 
     // Current batter — try multiple paths
     const currentPlay = (live.plays && live.plays.currentPlay) ? live.plays.currentPlay : null;
@@ -585,11 +592,11 @@ async function pollMLB() {
     }
   } catch(e) {
     console.warn('MLB poll error:', e);
-    // Keep strip visible but show error state
     var strip = document.getElementById('batter-strip');
     if (strip) {
       strip.style.display = 'flex';
-      document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">Updating...</span>';
+      document.getElementById('batter-name').innerHTML = '<span style="color:red;">Error: ' + e.message + '</span>';
+      document.getElementById('game-score').textContent = 'Check console';
     }
   }
 }
