@@ -476,7 +476,8 @@ async function loadMLBGames() {
   const sel = document.getElementById('mlb-game-select');
   try {
     const today = new Date().toISOString().split('T')[0];
-    const res = await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=' + today + '&hydrate=linescore');
+    const PROXY = 'https://corsproxy.io/?';
+    const res = await fetch(PROXY + encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=' + today + '&hydrate=linescore'));
     const data = await res.json();
     const games = (data.dates && data.dates[0] && data.dates[0].games) ? data.dates[0].games : [];
     if (games.length === 0) {
@@ -516,7 +517,8 @@ function startMLBPoll(gameId) {
 async function pollMLB() {
   if (!selectedGameId) return;
   try {
-    const res = await fetch('https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live');
+    const PROXY = 'https://corsproxy.io/?';
+    const res = await fetch(PROXY + encodeURIComponent('https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live'));
     const data = await res.json();
     const live = data.liveData;
     if (!live) return;
