@@ -473,25 +473,31 @@ async function rejoinGame() {
 // MLB API
 // ══════════════════════════════════════════════════
 async function loadMLBGames() {
-  const sel = document.getElementById('mlb-game-select');
+  var sel = document.getElementById('mlb-game-select');
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const PROXY = 'https://corsproxy.io/?';
-    const res = await fetch(PROXY + encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=' + today + '&hydrate=linescore'));
-    const data = await res.json();
-    const games = (data.dates && data.dates[0] && data.dates[0].games) ? data.dates[0].games : [];
+    var today = new Date().toISOString().split('T')[0];
+    var schedUrl = 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=' + today + '&hydrate=linescore&_=' + Date.now();
+    var res, data;
+    try {
+      res = await fetch('https://corsproxy.io/?' + encodeURIComponent(schedUrl));
+      data = await res.json();
+    } catch(e2) {
+      res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(schedUrl));
+      data = await res.json();
+    }
+    var games = (data.dates && data.dates[0] && data.dates[0].games) ? data.dates[0].games : [];
     if (games.length === 0) {
       sel.innerHTML = '<option value="">No games today</option>';
       return;
     }
     sel.innerHTML = '<option value="">— No MLB tracking (manual) —</option>';
     games.forEach(function(g) {
-      const away = g.teams.away.team.name;
-      const home = g.teams.home.team.name;
-      const status = g.status.detailedState;
-      const awayScore = g.teams.away.score != null ? g.teams.away.score : '';
-      const homeScore = g.teams.home.score != null ? g.teams.home.score : '';
-      const scoreStr = (awayScore !== '' && homeScore !== '') ? ' (' + awayScore + '-' + homeScore + ')' : '';
+      var away = g.teams.away.team.name;
+      var home = g.teams.home.team.name;
+      var status = g.status.detailedState;
+      var awayScore = g.teams.away.score != null ? g.teams.away.score : '';
+      var homeScore = g.teams.home.score != null ? g.teams.home.score : '';
+      var scoreStr = (awayScore !== '' && homeScore !== '') ? ' (' + awayScore + '-' + homeScore + ')' : '';
       sel.innerHTML += '<option value="' + g.gamePk + '">' + away + ' @ ' + home + scoreStr + ' — ' + status + '</option>';
     });
   } catch(e) {
@@ -517,9 +523,19 @@ function startMLBPoll(gameId) {
 async function pollMLB() {
   if (!selectedGameId) return;
   try {
+    var ts = '&_=' + Date.now();
+    var mlbUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live?fields=gameData,status,abstractGameState,teams,abbreviation,liveData,plays,currentPlay,allPlays,about,isComplete,atBatIndex,halfInning,inning,matchup,batter,fullName,count,balls,strikes,result,eventType,rbi,linescore,currentInning,inningHalf,teams,runs' + ts;
     var PROXY = 'https://corsproxy.io/?';
-    var res = await fetch(PROXY + encodeURIComponent('https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live'));
-    var data = await res.json();
+    var res, data;
+
+    try {
+      res = await fetch(PROXY + encodeURIComponent(mlbUrl));
+      data = await res.json();
+    } catch(proxyErr) {
+      // Fallback to second proxy
+      res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(mlbUrl));
+      data = await res.json();
+    }
     var live = data.liveData;
 
     document.getElementById('batter-strip').style.display = 'flex';
