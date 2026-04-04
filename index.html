@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pass the Cup</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
   :root {
     --green:#1a472a; --green-light:#2d6a40; --green-bright:#3dbd60;
@@ -397,6 +395,10 @@
 // ══════════════════════════════════════════════════
 function initFirebase() {
   try {
+    if (typeof firebase === 'undefined') {
+      alert('Firebase failed to load. Check your internet connection and reload the page.');
+      return false;
+    }
     if (!firebase.apps.length) {
       firebase.initializeApp({
         apiKey: "AIzaSyABv_nSPySDWzdKvgi_IAugOXoIZYJ9I3M",
@@ -406,7 +408,10 @@ function initFirebase() {
     }
     db = firebase.database();
     return true;
-  } catch(e) { console.error(e); return false; }
+  } catch(e) {
+    alert('Firebase error: ' + e.message);
+    return false;
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -1063,15 +1068,15 @@ function copyLink() {
 // ══════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════
-window.addEventListener('load', () => {
+window.addEventListener('load', function() {
   // Auto-fill room code from URL
-  const r = new URLSearchParams(location.search).get('room');
+  var r = new URLSearchParams(location.search).get('room');
   if (r) document.getElementById('join-code-input').value = r.toUpperCase();
 
   // Check for saved session
-  const s = loadSession();
+  var s = loadSession();
   if (s) {
-    document.getElementById('rejoin-info').textContent = `Room: ${s.roomCode} · You: ${s.myName}`;
+    document.getElementById('rejoin-info').textContent = 'Room: ' + s.roomCode + ' · You: ' + s.myName;
     document.getElementById('rejoin-banner').classList.add('show');
   }
 
@@ -1079,5 +1084,7 @@ window.addEventListener('load', () => {
   loadMLBGames();
 });
 </script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </body>
 </html>
