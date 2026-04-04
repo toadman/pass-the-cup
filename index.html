@@ -471,25 +471,25 @@ async function loadMLBGames() {
   const sel = document.getElementById('mlb-game-select');
   try {
     const today = new Date().toISOString().split('T')[0];
-    const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=linescore`);
+    const res = await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=' + today + '&hydrate=linescore');
     const data = await res.json();
-    const games = data.dates?.[0]?.games || [];
+    const games = (data.dates && data.dates[0] && data.dates[0].games) ? data.dates[0].games : [];
     if (games.length === 0) {
       sel.innerHTML = '<option value="">No games today</option>';
       return;
     }
     sel.innerHTML = '<option value="">— No MLB tracking (manual) —</option>';
-    games.forEach(g => {
+    games.forEach(function(g) {
       const away = g.teams.away.team.name;
       const home = g.teams.home.team.name;
       const status = g.status.detailedState;
-      const awayScore = g.teams.away.score ?? '';
-      const homeScore = g.teams.home.score ?? '';
-      const scoreStr = (awayScore !== '' && homeScore !== '') ? ` (${awayScore}-${homeScore})` : '';
-      sel.innerHTML += `<option value="${g.gamePk}">${away} @ ${home}${scoreStr} — ${status}</option>`;
+      const awayScore = g.teams.away.score != null ? g.teams.away.score : '';
+      const homeScore = g.teams.home.score != null ? g.teams.home.score : '';
+      const scoreStr = (awayScore !== '' && homeScore !== '') ? ' (' + awayScore + '-' + homeScore + ')' : '';
+      sel.innerHTML += '<option value="' + g.gamePk + '">' + away + ' @ ' + home + scoreStr + ' — ' + status + '</option>';
     });
   } catch(e) {
-    sel.innerHTML = '<option value="">Could not load games</option>';
+    sel.innerHTML = '<option value="">Could not load games — manual mode</option>';
   }
 }
 
@@ -623,40 +623,50 @@ function removePlayerRow(btn) {
 async function createGame() {
   const ante = parseFloat(document.getElementById('ante-input').value) || 5;
   const inputs = document.querySelectorAll('.player-name-input');
-  const players = Array.from(inputs).map((inp,i) => ({
-    name: inp.value.trim() || `Player ${i+1}`,
-    net: 0,
-    claimed: i === 0,
-    left: false
-  }));
+  const players = Array.from(inputs).map(function(inp, i) {
+    return { name: inp.value.trim() || ('Player ' + (i+1)), net: 0, claimed: i === 0, left: false };
+  });
   if (players.length < 2) { alert('Add at least 2 players!'); return; }
-  if (!initFirebase()) { alert('Could not connect.'); return; }
+
+  if (!initFirebase()) { alert('Could not connect to Firebase. Check your internet connection and try again.'); return; }
 
   const mlbGameId = document.getElementById('mlb-game-select').value || null;
   roomCode = generateCode();
-  isScorekeeper = true; myName = players[0].name; mySlot = 0;
+  isScorekeeper = true;
+  myName = players[0].name;
+  mySlot = 0;
 
   const init = {
-    players, ante,
+    players: players,
+    ante: ante,
     cupAmount: players.length * ante,
     currentHolderIndex: 0,
-    round: 1, log: [],
+    round: 1,
+    log: [],
     lastResultWasHR: false,
-    lastHRWinner: null, lastHRAmount: 0, lastHRRound: 0,
-    lastTPPlayer: null, lastTPRound: 0,
+    lastHRWinner: null,
+    lastHRAmount: 0,
+    lastHRRound: 0,
+    lastTPPlayer: null,
+    lastTPRound: 0,
     undoSnapshot: null,
     status: 'lobby',
     watchers: {},
-    mlbGameId
+    mlbGameId: mlbGameId
   };
 
-  await db.ref(`games/${roomCode}`).set(init);
-  saveSession();
-
-  document.getElementById('lobby-code').textContent = roomCode;
-  document.getElementById('share-link').value = `${location.origin}${location.pathname}?room=${roomCode}`;
-  showScreen('screen-lobby');
-  db.ref(`games/${roomCode}/watchers`).on('value', snap => renderLobbyPlayers(snap.val() || {}));
+  try {
+    await db.ref('games/' + roomCode).set(init);
+    saveSession();
+    document.getElementById('lobby-code').textContent = roomCode;
+    document.getElementById('share-link').value = location.origin + location.pathname + '?room=' + roomCode;
+    showScreen('screen-lobby');
+    db.ref('games/' + roomCode + '/watchers').on('value', function(snap) {
+      renderLobbyPlayers(snap.val() || {});
+    });
+  } catch(e) {
+    alert('Error creating game: ' + e.message);
+  }
 }
 
 async function joinGame() {
