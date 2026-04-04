@@ -509,53 +509,66 @@ function startMLBPoll(gameId) {
 async function pollMLB() {
   if (!selectedGameId) return;
   try {
-    const res = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${selectedGameId}/feed/live`);
+    const res = await fetch('https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live');
     const data = await res.json();
     const live = data.liveData;
     if (!live) return;
 
-    // Current batter
-    const currentPlay = live.plays?.currentPlay;
-    const batterName = currentPlay?.matchup?.batter?.fullName;
-    const inning = currentPlay?.about?.inning;
-    const half = currentPlay?.about?.halfInning === 'top' ? '▲' : '▼';
-    const awayScore = data.liveData?.linescore?.teams?.away?.runs ?? 0;
-    const homeScore = data.liveData?.linescore?.teams?.home?.runs ?? 0;
-    const awayName = data.gameData?.teams?.away?.abbreviation || '';
-    const homeAbbr = data.gameData?.teams?.home?.abbreviation || '';
+    // Current batter — try multiple paths
+    const currentPlay = (live.plays && live.plays.currentPlay) ? live.plays.currentPlay : null;
+    const batterName = currentPlay && currentPlay.matchup && currentPlay.matchup.batter
+      ? currentPlay.matchup.batter.fullName : null;
+    const inning = currentPlay && currentPlay.about ? currentPlay.about.inning : '?';
+    const halfInning = currentPlay && currentPlay.about ? currentPlay.about.halfInning : '';
+    const half = halfInning === 'top' ? '▲' : '▼';
+
+    const linescore = live.linescore || {};
+    const awayTeams = linescore.teams && linescore.teams.away ? linescore.teams.away : {};
+    const homeTeams = linescore.teams && linescore.teams.home ? linescore.teams.home : {};
+    const awayScore = awayTeams.runs !== undefined ? awayTeams.runs : 0;
+    const homeScore = homeTeams.runs !== undefined ? homeTeams.runs : 0;
+    const awayAbbr = data.gameData && data.gameData.teams && data.gameData.teams.away
+      ? data.gameData.teams.away.abbreviation : '';
+    const homeAbbr = data.gameData && data.gameData.teams && data.gameData.teams.home
+      ? data.gameData.teams.home.abbreviation : '';
 
     // Current count
-    const balls = currentPlay?.count?.balls ?? 0;
-    const strikes = currentPlay?.count?.strikes ?? 0;
+    const count = currentPlay && currentPlay.count ? currentPlay.count : {};
+    const balls = count.balls !== undefined ? count.balls : 0;
+    const strikes = count.strikes !== undefined ? count.strikes : 0;
+
+    // Always show the strip if we have any game data
+    const strip = document.getElementById('batter-strip');
+    strip.style.display = 'flex';
 
     if (batterName) {
-      document.getElementById('batter-strip').style.display = 'flex';
-      document.getElementById('batter-name').innerHTML = `${batterName} <span style="color:var(--dirt);font-size:18px;letter-spacing:2px;">${balls}-${strikes}</span>`;
-      document.getElementById('game-score').textContent = `${half}${inning} · ${awayName} ${awayScore} - ${homeAbbr} ${homeScore}`;
+      document.getElementById('batter-name').innerHTML = batterName +
+        ' <span style="color:var(--dirt);font-size:18px;letter-spacing:2px;">' + balls + '-' + strikes + '</span>';
+    } else {
+      document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">Between innings</span>';
     }
+    document.getElementById('game-score').textContent = half + inning + ' · ' + awayAbbr + ' ' + awayScore + ' - ' + homeAbbr + ' ' + homeScore;
 
     // Auto-record completed at-bats (scorekeeper only)
     if (!isScorekeeper) return;
-    const allPlays = live.plays?.allPlays || [];
-    const lastCompleted = [...allPlays].reverse().find(p => p.about?.isComplete);
+    const allPlays = (live.plays && live.plays.allPlays) ? live.plays.allPlays : [];
+    const lastCompleted = allPlays.slice().reverse().find(function(p) { return p.about && p.about.isComplete; });
     if (!lastCompleted) return;
-    const atBatIndex = lastCompleted.about?.atBatIndex;
-    if (atBatIndex === lastProcessedAtBat) return;
+    const atBatIndex = lastCompleted.about && lastCompleted.about.atBatIndex !== undefined
+      ? lastCompleted.about.atBatIndex : null;
+    if (atBatIndex === null || atBatIndex === lastProcessedAtBat) return;
     lastProcessedAtBat = atBatIndex;
 
-    const event = lastCompleted.result?.eventType;
-    const rbi = lastCompleted.result?.rbi || 0;
+    const event = lastCompleted.result ? lastCompleted.result.eventType : null;
+    const rbi = lastCompleted.result ? (lastCompleted.result.rbi || 0) : 0;
     if (!event) return;
 
-    // Map MLB event to our game result
     const mapped = MLB_EVENT_MAP[event];
     if (!mapped) return;
 
-    // Auto-record
     recordResult(mapped, true);
-    // Stack RBIs if applicable and not a HR
     if (rbi > 0 && mapped !== 'home_run' && rbi <= 3) {
-      setTimeout(() => recordRBI(rbi, true), 300);
+      setTimeout(function() { recordRBI(rbi, true); }, 300);
     }
   } catch(e) {
     console.warn('MLB poll error:', e);
@@ -982,6 +995,12 @@ function resetGame() {
 // RENDER
 // ══════════════════════════════════════════════════
 function renderGame(s) {
+  // Always enforce role-based UI
+  if (!isScorekeeper) {
+    document.getElementById('scorekeeper-controls').style.display = 'none';
+    document.getElementById('watcher-banner').style.display = 'flex';
+  }
+
   // Cup
   const cupEl = document.getElementById('cup-display');
   const val = `$${fmt(s.cupAmount)}`;
