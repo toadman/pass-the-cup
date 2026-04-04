@@ -781,7 +781,7 @@ async function joinAsNewPlayer() {
   if (data.mlbGameId) startMLBPoll(data.mlbGameId);
 }
 
-
+async function joinAsSpectator() {
   const snap = await db.ref(`games/${roomCode}`).get();
   await joinAsSpectatorDirect(snap.val());
 }
