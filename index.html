@@ -611,7 +611,14 @@ async function pollMLB() {
     if (!lastCompleted) return;
     var atBatIndex = lastCompleted.about && lastCompleted.about.atBatIndex !== undefined
       ? lastCompleted.about.atBatIndex : null;
-    if (atBatIndex === null || atBatIndex === lastProcessedAtBat) return;
+    if (atBatIndex === null) return;
+
+    // Check both local var AND Firebase state to prevent duplicates on rejoin
+    if (atBatIndex === lastProcessedAtBat) return;
+    if (localState && localState.lastProcessedAtBat !== undefined && atBatIndex === localState.lastProcessedAtBat) {
+      lastProcessedAtBat = atBatIndex; // sync local to Firebase state
+      return;
+    }
     lastProcessedAtBat = atBatIndex;
 
     var event = lastCompleted.result ? lastCompleted.result.eventType : null;
@@ -623,7 +630,6 @@ async function pollMLB() {
     var mapped = MLB_EVENT_MAP[event];
     if (!mapped) return;
 
-    // Pass RBI count into recordResult so it's one atomic write
     recordResult(mapped, mlbBatter, mlbDesc, rbi);
   } catch(e) {
     console.warn('MLB poll error:', e);
@@ -945,6 +951,11 @@ function setupListener() {
       }
     }
 
+    // Sync lastProcessedAtBat from Firebase on load to prevent duplicate recording
+    if (lastProcessedAtBat === null && s.lastProcessedAtBat !== undefined) {
+      lastProcessedAtBat = s.lastProcessedAtBat;
+    }
+
     localState = s;
     renderGame(s);
 
@@ -981,7 +992,13 @@ function recordResult(type, mlbBatter, mlbDesc, autoRbi) {
   const r = R[type];
   if (!r) return;
   const s = JSON.parse(JSON.stringify(localState));
-  s.undoSnapshot = JSON.stringify(localState);
+
+  // Store minimal undo snapshot — strip out the previous snapshot and trim log to avoid size explosion
+  const snapState = JSON.parse(JSON.stringify(localState));
+  snapState.undoSnapshot = null;
+  snapState.log = (snapState.log || []).slice(0, 5);
+  s.undoSnapshot = JSON.stringify(snapState);
+
   const holder = s.players[s.currentHolderIndex];
 
   // Build log description — use MLB play description if available
@@ -1030,6 +1047,9 @@ function recordResult(type, mlbBatter, mlbDesc, autoRbi) {
     s.currentHolderIndex = nextActiveHolder(s, s.currentHolderIndex);
   }
 
+  // Save lastProcessedAtBat so rejoin doesn't re-record the same play
+  if (lastProcessedAtBat !== null) s.lastProcessedAtBat = lastProcessedAtBat;
+
   db.ref(`games/${roomCode}`).update(s);
 
   // Play sound for this result
@@ -1050,7 +1070,10 @@ function nextActiveHolder(s, currentIdx) {
 function recordRBI(count, auto = false) {
   if (!isScorekeeper || !localState) return;
   const s = JSON.parse(JSON.stringify(localState));
-  s.undoSnapshot = JSON.stringify(localState);
+  const snapState = JSON.parse(JSON.stringify(localState));
+  snapState.undoSnapshot = null;
+  snapState.log = (snapState.log || []).slice(0, 5);
+  s.undoSnapshot = JSON.stringify(snapState);
   const holder = s.players[s.currentHolderIndex];
   const take = Math.min(count, s.cupAmount);
   s.cupAmount -= take;
