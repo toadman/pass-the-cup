@@ -606,7 +606,9 @@ async function pollMLB() {
     var timeStr = hrs + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0') + ' ' + ampm;
     document.getElementById('game-score').textContent = half + currentInning + ' · ' + outsStr + ' · ' + awayAbbr + ' ' + awayRuns + ' - ' + homeAbbr + ' ' + homeRuns + ' · ' + timeStr;
 
-    // Auto-record completed at-bats (scorekeeper only)
+let processedAtBats = new Set();
+
+// Auto-record completed at-bats (scorekeeper only)
     if (!isScorekeeper) return;
     var allPlays = (live.plays && live.plays.allPlays) ? live.plays.allPlays : [];
     var lastCompleted = allPlays.slice().reverse().find(function(p) { return p.about && p.about.isComplete; });
@@ -615,12 +617,10 @@ async function pollMLB() {
       ? lastCompleted.about.atBatIndex : null;
     if (atBatIndex === null) return;
 
-    // Check both local var AND Firebase state to prevent duplicates on rejoin
-    if (atBatIndex === lastProcessedAtBat) return;
-    if (localState && localState.lastProcessedAtBat !== undefined && atBatIndex === localState.lastProcessedAtBat) {
-      lastProcessedAtBat = atBatIndex; // sync local to Firebase state
-      return;
-    }
+    // Use Set for bulletproof deduplication — never process same at-bat twice
+    var atBatKey = selectedGameId + '-' + atBatIndex;
+    if (processedAtBats.has(atBatKey)) return;
+    processedAtBats.add(atBatKey);
     lastProcessedAtBat = atBatIndex;
 
     var event = lastCompleted.result ? lastCompleted.result.eventType : null;
@@ -956,6 +956,12 @@ function setupListener() {
     // Sync lastProcessedAtBat from Firebase on load to prevent duplicate recording
     if (lastProcessedAtBat === null && s.lastProcessedAtBat !== undefined) {
       lastProcessedAtBat = s.lastProcessedAtBat;
+      // Pre-populate Set with all at-bats up to and including the last processed one
+      if (selectedGameId && s.lastProcessedAtBat !== null) {
+        for (var i = 0; i <= s.lastProcessedAtBat; i++) {
+          processedAtBats.add(selectedGameId + '-' + i);
+        }
+      }
     }
 
     localState = s;
@@ -1110,6 +1116,7 @@ function resetGame() {
   roomCode=null; isScorekeeper=false; myName=''; mySlot=-1;
   isSpectator=false; localState=null; lastHRKey=null; lastTPKey=null;
   lastProcessedAtBat=null; selectedGameId=null;
+  processedAtBats = new Set();
   clearSession();
   showScreen('screen-home');
 }
