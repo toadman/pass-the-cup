@@ -529,17 +529,25 @@ async function pollMLB() {
   if (!selectedGameId) return;
   try {
     var ts = Date.now();
-    var mlbUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live';
-    var res, data;
+    var linescoreUrl = 'https://statsapi.mlb.com/api/v1/game/' + selectedGameId + '/linescore';
+    var liveUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live?fields=gameData,status,abstractGameState,teams,abbreviation,liveData,plays,currentPlay,allPlays,about,isComplete,atBatIndex,halfInning,inning,matchup,batter,fullName,count,balls,strikes,result,eventType,rbi,description';
+    var lsData, data;
 
-    // Try allorigins first (better cache busting), then corsproxy as fallback
     try {
-      res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(mlbUrl) + '&_=' + ts, { cache: 'no-store' });
-      data = await res.json();
+      var r = await Promise.all([
+        fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(linescoreUrl) + '&_=' + ts, { cache: 'no-store' }),
+        fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(liveUrl) + '&_=' + ts, { cache: 'no-store' })
+      ]);
+      lsData = await r[0].json();
+      data = await r[1].json();
     } catch(e1) {
       try {
-        res = await fetch('https://corsproxy.io/?' + encodeURIComponent(mlbUrl + '?_=' + ts), { cache: 'no-store' });
-        data = await res.json();
+        var r2 = await Promise.all([
+          fetch('https://corsproxy.io/?' + encodeURIComponent(linescoreUrl)),
+          fetch('https://corsproxy.io/?' + encodeURIComponent(liveUrl))
+        ]);
+        lsData = await r2[0].json();
+        data = await r2[1].json();
       } catch(e2) {
         document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">No connection</span>';
         document.getElementById('game-score').textContent = 'Retrying...';
@@ -555,18 +563,18 @@ async function pollMLB() {
       return;
     }
 
-    var linescore = live.linescore || {};
+    // Use dedicated linescore endpoint for score/inning (more reliable)
+    var ls = lsData || {};
     var currentPlay = (live.plays && live.plays.currentPlay) ? live.plays.currentPlay : null;
 
     // Game status
     var gameStatus = data.gameData && data.gameData.status ? data.gameData.status.abstractGameState : '';
 
-    // Always pull inning + score from linescore — most reliable even between innings
-    var currentInning = linescore.currentInning || (currentPlay && currentPlay.about ? currentPlay.about.inning : '?') || '?';
-    var inningHalfRaw = linescore.inningHalf || (currentPlay && currentPlay.about ? currentPlay.about.halfInning : '') || '';
+    var currentInning = ls.currentInning || (currentPlay && currentPlay.about ? currentPlay.about.inning : '?') || '?';
+    var inningHalfRaw = ls.inningHalf || (currentPlay && currentPlay.about ? currentPlay.about.halfInning : '') || '';
     var half = inningHalfRaw.toLowerCase() === 'top' ? '▲' : '▼';
-    var awayRuns = (linescore.teams && linescore.teams.away && linescore.teams.away.runs !== undefined) ? linescore.teams.away.runs : '?';
-    var homeRuns = (linescore.teams && linescore.teams.home && linescore.teams.home.runs !== undefined) ? linescore.teams.home.runs : '?';
+    var awayRuns = (ls.teams && ls.teams.away && ls.teams.away.runs !== undefined) ? ls.teams.away.runs : '?';
+    var homeRuns = (ls.teams && ls.teams.home && ls.teams.home.runs !== undefined) ? ls.teams.home.runs : '?';
     var awayAbbr = data.gameData && data.gameData.teams && data.gameData.teams.away ? data.gameData.teams.away.abbreviation : '';
     var homeAbbr = data.gameData && data.gameData.teams && data.gameData.teams.home ? data.gameData.teams.home.abbreviation : '';
 
@@ -590,7 +598,10 @@ async function pollMLB() {
       document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">Between Innings</span>';
     }
     var now = new Date();
-    var timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+    var hrs = now.getHours();
+    var ampm = hrs >= 12 ? 'PM' : 'AM';
+    hrs = hrs % 12 || 12;
+    var timeStr = hrs + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0') + ' ' + ampm;
     document.getElementById('game-score').textContent = half + currentInning + ' · ' + awayAbbr + ' ' + awayRuns + ' - ' + homeAbbr + ' ' + homeRuns + ' · ' + timeStr;
 
     // Auto-record completed at-bats (scorekeeper only)
