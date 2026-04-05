@@ -573,6 +573,8 @@ async function pollMLB() {
     var currentInning = ls.currentInning || (currentPlay && currentPlay.about ? currentPlay.about.inning : '?') || '?';
     var inningHalfRaw = ls.inningHalf || (currentPlay && currentPlay.about ? currentPlay.about.halfInning : '') || '';
     var half = inningHalfRaw.toLowerCase() === 'top' ? '▲' : '▼';
+    var outs = ls.outs !== undefined ? ls.outs : (currentPlay && currentPlay.count && currentPlay.count.outs !== undefined ? currentPlay.count.outs : 0);
+    var outsStr = outs + (outs === 1 ? ' out' : ' outs');
     var awayRuns = (ls.teams && ls.teams.away && ls.teams.away.runs !== undefined) ? ls.teams.away.runs : '?';
     var homeRuns = (ls.teams && ls.teams.home && ls.teams.home.runs !== undefined) ? ls.teams.home.runs : '?';
     var awayAbbr = data.gameData && data.gameData.teams && data.gameData.teams.away ? data.gameData.teams.away.abbreviation : '';
@@ -602,7 +604,7 @@ async function pollMLB() {
     var ampm = hrs >= 12 ? 'PM' : 'AM';
     hrs = hrs % 12 || 12;
     var timeStr = hrs + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0') + ' ' + ampm;
-    document.getElementById('game-score').textContent = half + currentInning + ' · ' + awayAbbr + ' ' + awayRuns + ' - ' + homeAbbr + ' ' + homeRuns + ' · ' + timeStr;
+    document.getElementById('game-score').textContent = half + currentInning + ' · ' + outsStr + ' · ' + awayAbbr + ' ' + awayRuns + ' - ' + homeAbbr + ' ' + homeRuns + ' · ' + timeStr;
 
     // Auto-record completed at-bats (scorekeeper only)
     if (!isScorekeeper) return;
