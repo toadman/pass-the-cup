@@ -528,18 +528,23 @@ function startMLBPoll(gameId) {
 async function pollMLB() {
   if (!selectedGameId) return;
   try {
-    var ts = '&_=' + Date.now();
-    var mlbUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live?' + ts;
-    var PROXY = 'https://corsproxy.io/?';
+    var ts = Date.now();
+    var mlbUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live';
     var res, data;
 
+    // Try allorigins first (better cache busting), then corsproxy as fallback
     try {
-      res = await fetch(PROXY + encodeURIComponent(mlbUrl));
+      res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(mlbUrl) + '&_=' + ts, { cache: 'no-store' });
       data = await res.json();
-    } catch(proxyErr) {
-      // Fallback to second proxy
-      res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(mlbUrl));
-      data = await res.json();
+    } catch(e1) {
+      try {
+        res = await fetch('https://corsproxy.io/?' + encodeURIComponent(mlbUrl + '?_=' + ts), { cache: 'no-store' });
+        data = await res.json();
+      } catch(e2) {
+        document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">No connection</span>';
+        document.getElementById('game-score').textContent = 'Retrying...';
+        return;
+      }
     }
     var live = data.liveData;
 
@@ -553,51 +558,40 @@ async function pollMLB() {
     var linescore = live.linescore || {};
     var currentPlay = (live.plays && live.plays.currentPlay) ? live.plays.currentPlay : null;
 
-    // Check if game is final
+    // Game status
     var gameStatus = data.gameData && data.gameData.status ? data.gameData.status.abstractGameState : '';
+
+    // Always pull inning + score from linescore — most reliable even between innings
+    var currentInning = linescore.currentInning || (currentPlay && currentPlay.about ? currentPlay.about.inning : '?') || '?';
+    var inningHalfRaw = linescore.inningHalf || (currentPlay && currentPlay.about ? currentPlay.about.halfInning : '') || '';
+    var half = inningHalfRaw.toLowerCase() === 'top' ? '▲' : '▼';
+    var awayRuns = (linescore.teams && linescore.teams.away && linescore.teams.away.runs !== undefined) ? linescore.teams.away.runs : '?';
+    var homeRuns = (linescore.teams && linescore.teams.home && linescore.teams.home.runs !== undefined) ? linescore.teams.home.runs : '?';
+    var awayAbbr = data.gameData && data.gameData.teams && data.gameData.teams.away ? data.gameData.teams.away.abbreviation : '';
+    var homeAbbr = data.gameData && data.gameData.teams && data.gameData.teams.home ? data.gameData.teams.home.abbreviation : '';
+
+    // Final game state
     if (gameStatus === 'Final') {
-      var awayFinal = data.gameData.teams.away.abbreviation || '';
-      var homeFinal = data.gameData.teams.home.abbreviation || '';
-      var awayRunsFinal = linescore.teams && linescore.teams.away ? linescore.teams.away.runs : 0;
-      var homeRunsFinal = linescore.teams && linescore.teams.home ? linescore.teams.home.runs : 0;
       document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.5);">Game Over</span>';
-      document.getElementById('game-score').textContent = 'Final · ' + awayFinal + ' ' + awayRunsFinal + ' - ' + homeFinal + ' ' + homeRunsFinal;
+      document.getElementById('game-score').textContent = 'Final · ' + awayAbbr + ' ' + awayRuns + ' - ' + homeAbbr + ' ' + homeRuns;
       return;
     }
-    var batterName = currentPlay && currentPlay.matchup && currentPlay.matchup.batter
-      ? currentPlay.matchup.batter.fullName : null;
-    var inning = (currentPlay && currentPlay.about && currentPlay.about.inning)
-      ? currentPlay.about.inning
-      : (linescore.currentInning ? linescore.currentInning : '?');
-    var halfInning = (currentPlay && currentPlay.about && currentPlay.about.halfInning)
-      ? currentPlay.about.halfInning
-      : (linescore.inningHalf ? linescore.inningHalf.toLowerCase() : 'bottom');
-    var half = halfInning === 'top' ? '▲' : '▼';
 
-    var awayTeams = linescore.teams && linescore.teams.away ? linescore.teams.away : {};
-    var homeTeams = linescore.teams && linescore.teams.home ? linescore.teams.home : {};
-    // Try linescore runs first, fall back to gameData
-    var awayScore = awayTeams.runs !== undefined ? awayTeams.runs
-      : (data.gameData && data.gameData.teams && data.gameData.teams.away && data.gameData.teams.away.score !== undefined ? data.gameData.teams.away.score : '?');
-    var homeScore = homeTeams.runs !== undefined ? homeTeams.runs
-      : (data.gameData && data.gameData.teams && data.gameData.teams.home && data.gameData.teams.home.score !== undefined ? data.gameData.teams.home.score : '?');
-    var awayAbbr = data.gameData && data.gameData.teams && data.gameData.teams.away
-      ? data.gameData.teams.away.abbreviation : '';
-    var homeAbbr = data.gameData && data.gameData.teams && data.gameData.teams.home
-      ? data.gameData.teams.home.abbreviation : '';
-
+    // Current batter + count
+    var batterName = currentPlay && currentPlay.matchup && currentPlay.matchup.batter ? currentPlay.matchup.batter.fullName : null;
     var count = currentPlay && currentPlay.count ? currentPlay.count : {};
     var balls = count.balls !== undefined ? count.balls : 0;
     var strikes = count.strikes !== undefined ? count.strikes : 0;
 
     if (batterName) {
-      // Always update display — even if same batter, count may have changed
       document.getElementById('batter-name').innerHTML = batterName +
         ' <span style="color:var(--dirt);font-size:18px;letter-spacing:2px;">' + balls + '-' + strikes + '</span>';
     } else {
-      document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">Between innings</span>';
+      document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">Between Innings</span>';
     }
-    document.getElementById('game-score').textContent = half + inning + ' · ' + awayAbbr + ' ' + awayScore + ' - ' + homeAbbr + ' ' + homeScore;
+    var now = new Date();
+    var timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('game-score').textContent = half + currentInning + ' · ' + awayAbbr + ' ' + awayRuns + ' - ' + homeAbbr + ' ' + homeRuns + ' · ' + timeStr;
 
     // Auto-record completed at-bats (scorekeeper only)
     if (!isScorekeeper) return;
