@@ -253,6 +253,8 @@
       <div class="cup-label" style="margin-bottom:8px;">Players in room</div>
       <div id="lobby-players" style="margin-bottom:16px;"></div>
       <button class="btn btn-primary" id="start-game-btn" onclick="startGame()">Start Game →</button>
+      <button class="btn btn-secondary" id="sound-enable-btn" onclick="enableSound()" style="margin-top:10px;">🔊 Enable Game Sounds</button>
+      <div id="sound-status" style="font-family:'Barlow Condensed',sans-serif;font-size:13px;color:rgba(255,255,255,0.4);text-align:center;margin-top:8px;">Sounds off — tap to enable</div>
     </div>
   </div>
 
@@ -274,6 +276,9 @@
   <div id="screen-game" class="screen">
 
     <div class="cup-section">
+      <div style="display:flex;justify-content:flex-end;padding:0 4px 4px;">
+        <button id="mute-btn" onclick="toggleMute()" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:20px;cursor:pointer;padding:4px;">🔊</button>
+      </div>
       <div class="cup-label">🍺 In The Cup</div>
       <div class="cup-amount" id="cup-display">$0</div>
       <div class="round-badge" id="round-badge">Round 1</div>
@@ -524,7 +529,7 @@ async function pollMLB() {
   if (!selectedGameId) return;
   try {
     var ts = '&_=' + Date.now();
-    var mlbUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live?fields=gameData,status,abstractGameState,teams,abbreviation,liveData,plays,currentPlay,allPlays,about,isComplete,atBatIndex,halfInning,inning,matchup,batter,fullName,count,balls,strikes,result,eventType,rbi,description,linescore,currentInning,inningHalf,teams,runs,hits,errors' + ts;
+    var mlbUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live?' + ts;
     var PROXY = 'https://corsproxy.io/?';
     var res, data;
 
@@ -613,10 +618,8 @@ async function pollMLB() {
     var mapped = MLB_EVENT_MAP[event];
     if (!mapped) return;
 
-    recordResult(mapped, mlbBatter, mlbDesc);
-    if (rbi > 0 && mapped !== 'home_run' && rbi <= 3) {
-      setTimeout(function() { recordRBI(rbi, true); }, 300);
-    }
+    // Pass RBI count into recordResult so it's one atomic write
+    recordResult(mapped, mlbBatter, mlbDesc, rbi);
   } catch(e) {
     console.warn('MLB poll error:', e);
     document.getElementById('batter-strip').style.display = 'flex';
@@ -919,6 +922,24 @@ function setupListener() {
   gameRef.on('value', snap => {
     if (!snap.exists()) return;
     const s = snap.val();
+
+    // Trigger sound for watchers based on most recent log entry
+    if (!isScorekeeper && localState && s.log && s.log.length > 0) {
+      var prevLen = localState.log ? localState.log.length : 0;
+      if (s.log.length !== prevLen) {
+        var latest = s.log[0];
+        if (latest) {
+          var typeFromIcon = {
+            '💥': 'home_run', '🔥': 'triple', '✌️': 'double', '🥎': 'single',
+            '☠️': 'field_out', '🤚': 'strikeout', '👀': 'strikeout_looking',
+            '💀': 'double_play', '💀💀💀': 'triple_play', '🚶': 'walk', '🦅': 'sac_fly'
+          };
+          var t = typeFromIcon[latest.icon];
+          if (t) setTimeout(function() { triggerSoundForResult(t); }, 100);
+        }
+      }
+    }
+
     localState = s;
     renderGame(s);
 
@@ -950,7 +971,7 @@ function setupListener() {
 // ══════════════════════════════════════════════════
 // GAME LOGIC
 // ══════════════════════════════════════════════════
-function recordResult(type, mlbBatter, mlbDesc) {
+function recordResult(type, mlbBatter, mlbDesc, autoRbi) {
   if (!isScorekeeper || !localState) return;
   const r = R[type];
   if (!r) return;
@@ -991,6 +1012,13 @@ function recordResult(type, mlbBatter, mlbDesc) {
       s.cupAmount -= take;
       holder.net += take;
       pushLog(s, holder.name, r.icon, logDesc, take, 'pos');
+      // Apply RBIs atomically to same holder before advancing
+      if (autoRbi && autoRbi > 0 && autoRbi <= 3) {
+        const rbiTake = Math.min(autoRbi, s.cupAmount);
+        s.cupAmount -= rbiTake;
+        holder.net += rbiTake;
+        pushLog(s, holder.name, '🏃', 'took $' + rbiTake + ' for ' + autoRbi + ' RBI' + (autoRbi > 1 ? 's' : ''), rbiTake, 'pos');
+      }
     } else {
       pushLog(s, holder.name, r.icon, logDesc, 0, 'neutral');
     }
@@ -998,6 +1026,9 @@ function recordResult(type, mlbBatter, mlbDesc) {
   }
 
   db.ref(`games/${roomCode}`).update(s);
+
+  // Play sound for this result
+  triggerSoundForResult(type);
 }
 
 function nextActiveHolder(s, currentIdx) {
@@ -1063,7 +1094,8 @@ function renderGame(s) {
     document.getElementById('watcher-banner').style.display = 'flex';
   }
 
-  // Cup
+  // Check if it's now my turn and play organ charge
+  checkHolderChange(s);
   const cupEl = document.getElementById('cup-display');
   const val = `$${fmt(s.cupAmount)}`;
   if (cupEl.textContent !== val) {
@@ -1144,6 +1176,195 @@ function copyLink() {
     const btn=document.getElementById('copy-btn'); btn.textContent='Copied!';
     setTimeout(()=>btn.textContent='Copy',2000);
   });
+}
+
+// ══════════════════════════════════════════════════
+// SOUND ENGINE
+// ══════════════════════════════════════════════════
+var audioCtx = null;
+var soundEnabled = false;
+var soundMuted = false;
+var lastHolderIndex = -1;
+
+function enableSound() {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    soundEnabled = true;
+    // Play a quick test tone to confirm
+    playOrganCharge();
+    document.getElementById('sound-enable-btn').textContent = '✅ Sounds Enabled!';
+    document.getElementById('sound-enable-btn').style.color = 'var(--green-bright)';
+    document.getElementById('sound-status').textContent = 'Game sounds are on — use 🔊 in-game to mute';
+  } catch(e) {
+    document.getElementById('sound-status').textContent = 'Could not enable audio';
+  }
+}
+
+function toggleMute() {
+  soundMuted = !soundMuted;
+  document.getElementById('mute-btn').textContent = soundMuted ? '🔇' : '🔊';
+}
+
+function canPlay() {
+  return soundEnabled && !soundMuted && audioCtx;
+}
+
+// ── Sound primitives ──────────────────────────────
+function playTone(freq, type, startTime, duration, gainVal, endFreq) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, startTime);
+  if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, startTime + duration);
+  gain.gain.setValueAtTime(gainVal || 0.3, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
+function playNoise(startTime, duration, gainVal) {
+  if (!audioCtx) return;
+  var bufferSize = audioCtx.sampleRate * duration;
+  var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  var data = buffer.getChannelData(0);
+  for (var i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  var source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  var filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 800;
+  var gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(gainVal || 0.15, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  source.start(startTime);
+  source.stop(startTime + duration);
+}
+
+// ── Composed sounds ───────────────────────────────
+
+// 🎺 Organ charge — your turn!
+function playOrganCharge() {
+  if (!canPlay()) return;
+  var t = audioCtx.currentTime;
+  var notes = [261.6, 329.6, 392, 523.2, 392, 523.2];
+  var times = [0, 0.12, 0.24, 0.36, 0.48, 0.56];
+  notes.forEach(function(freq, i) {
+    playTone(freq, 'square', t + times[i], 0.18, 0.18);
+  });
+}
+
+// 🪵 Crack of bat
+function playBatCrack() {
+  if (!canPlay()) return;
+  var t = audioCtx.currentTime;
+  playNoise(t, 0.08, 0.6);
+  playTone(200, 'sine', t, 0.12, 0.3, 60);
+}
+
+// 🎉 Crowd cheer — win money
+function playCrowdCheer() {
+  if (!canPlay()) return;
+  var t = audioCtx.currentTime;
+  playBatCrack();
+  // Rising cheer
+  [180, 220, 280, 350, 420].forEach(function(freq, i) {
+    playNoise(t + i * 0.08, 0.2, 0.08);
+    playTone(freq, 'sine', t + i * 0.08, 0.2, 0.08);
+  });
+}
+
+// 💥 Home run roar
+function playHomeRunRoar() {
+  if (!canPlay()) return;
+  var t = audioCtx.currentTime;
+  playBatCrack();
+  // Big sustained roar
+  for (var i = 0; i < 8; i++) {
+    playNoise(t + i * 0.1, 0.3, 0.12);
+    playTone(150 + i * 20, 'sine', t + i * 0.1, 0.3, 0.1);
+  }
+  // Fanfare
+  var fanfare = [523, 659, 784, 1047];
+  fanfare.forEach(function(freq, i) {
+    playTone(freq, 'square', t + 0.5 + i * 0.15, 0.2, 0.15);
+  });
+}
+
+// 😢 Sad trombone — put money in
+function playSadTrombone() {
+  if (!canPlay()) return;
+  var t = audioCtx.currentTime;
+  playTone(466, 'sawtooth', t, 0.25, 0.2, 415);
+  playTone(415, 'sawtooth', t + 0.25, 0.25, 0.2, 370);
+  playTone(370, 'sawtooth', t + 0.5, 0.35, 0.2, 311);
+}
+
+// 💀 Double play groan
+function playDoublePlayGroan() {
+  if (!canPlay()) return;
+  var t = audioCtx.currentTime;
+  playSadTrombone();
+  playTone(200, 'sine', t + 0.1, 0.5, 0.1, 100);
+}
+
+// 💀💀💀 Triple play — dramatic
+function playTriplePlayDrama() {
+  if (!canPlay()) return;
+  var t = audioCtx.currentTime;
+  [600, 500, 400, 300, 200].forEach(function(freq, i) {
+    playTone(freq, 'sawtooth', t + i * 0.15, 0.2, 0.25);
+  });
+  playNoise(t + 0.7, 0.4, 0.2);
+}
+
+// 🚶 Push — neutral crowd murmur
+function playPush() {
+  if (!canPlay()) return;
+  var t = audioCtx.currentTime;
+  playNoise(t, 0.15, 0.04);
+  playTone(300, 'sine', t, 0.15, 0.05);
+}
+
+// ── Trigger sounds based on game events ──────────
+function triggerSoundForResult(type, isMyTurn) {
+  if (!canPlay()) return;
+  var wins = ['single', 'double', 'triple', 'home_run'];
+  var losses = ['field_out', 'force_out', 'strikeout', 'strikeout_looking', 'batter_interference', 'fielders_choice_out'];
+  var bigLosses = ['double_play', 'grounded_into_double_play'];
+  var pushes = ['walk', 'sac_fly', 'fielders_choice'];
+
+  if (type === 'home_run') {
+    playHomeRunRoar();
+  } else if (type === 'triple_play') {
+    playTriplePlayDrama();
+  } else if (wins.indexOf(type) >= 0) {
+    playCrowdCheer();
+  } else if (bigLosses.indexOf(type) >= 0) {
+    playDoublePlayGroan();
+  } else if (losses.indexOf(type) >= 0) {
+    playSadTrombone();
+  } else if (pushes.indexOf(type) >= 0) {
+    playPush();
+  }
+}
+
+// ── Watch for holder changes to play organ charge ──
+function checkHolderChange(s) {
+  if (!canPlay()) return;
+  if (s.currentHolderIndex !== lastHolderIndex) {
+    lastHolderIndex = s.currentHolderIndex;
+    // Only play for the local player when it's their turn
+    var currentHolder = s.players[s.currentHolderIndex];
+    if (currentHolder && currentHolder.name === myName) {
+      setTimeout(playOrganCharge, 300);
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════
