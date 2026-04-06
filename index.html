@@ -430,6 +430,7 @@ let playerCount = 2;
 let mlbPollTimer = null;
 let lastProcessedAtBat = null;
 let selectedGameId = null;
+let processedAtBats = new Set();
 
 // ══════════════════════════════════════════════════
 // SESSION (localStorage)
@@ -609,10 +610,11 @@ async function pollMLB() {
     var timeStr = hrs + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0') + ' ' + ampm;
     document.getElementById('game-score').textContent = half + currentInning + ' · ' + outsStr + ' · ' + awayAbbr + ' ' + awayRuns + ' - ' + homeAbbr + ' ' + homeRuns + ' · ' + timeStr;
 
-let processedAtBats = new Set();
-
-// Auto-record completed at-bats (scorekeeper only)
+    // Auto-record completed at-bats — only the true scorekeeper device records
     if (!isScorekeeper) return;
+    // Extra check: validate this device is the original scorekeeper via stored ID
+    var storedSkId = localStorage.getItem('ptc_skid_' + roomCode);
+    if (localState && localState.scorekeeperId && storedSkId !== localState.scorekeeperId) return;
     var allPlays = (live.plays && live.plays.allPlays) ? live.plays.allPlays : [];
     var lastCompleted = allPlays.slice().reverse().find(function(p) { return p.about && p.about.isComplete; });
     if (!lastCompleted) return;
@@ -722,6 +724,8 @@ async function createGame() {
   isScorekeeper = true;
   myName = players[0].name;
   mySlot = 0;
+  const scorekeeperId = 'sk-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  localStorage.setItem('ptc_skid_' + roomCode, scorekeeperId);
 
   const init = {
     players: players,
@@ -739,7 +743,8 @@ async function createGame() {
     undoSnapshot: null,
     status: 'lobby',
     watchers: {},
-    mlbGameId: mlbGameId
+    mlbGameId: mlbGameId,
+    scorekeeperId: scorekeeperId
   };
 
   try {
