@@ -586,8 +586,9 @@ async function pollMLB() {
 
     // Final game state
     if (gameStatus === 'Final') {
-      document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.5);">Game Over</span>';
-      document.getElementById('game-score').textContent = 'Final · ' + awayAbbr + ' ' + awayRuns + ' - ' + homeAbbr + ' ' + homeRuns;
+      if (isScorekeeper) {
+        db.ref('games/' + roomCode + '/batterInfo').set({ batterName: null, balls: 0, strikes: 0, inning: currentInning, half: half, outs: outs, awayRuns: awayRuns, homeRuns: homeRuns, awayAbbr: awayAbbr, homeAbbr: homeAbbr, final: true });
+      }
       return;
     }
 
@@ -597,18 +598,18 @@ async function pollMLB() {
     var balls = count.balls !== undefined ? count.balls : 0;
     var strikes = count.strikes !== undefined ? count.strikes : 0;
 
-    if (batterName) {
-      document.getElementById('batter-name').innerHTML = batterName +
-        ' <span style="color:var(--dirt);font-size:18px;letter-spacing:2px;">' + balls + '-' + strikes + '</span>';
-    } else {
-      document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">Between Innings</span>';
+    // Scorekeeper writes batter info to Firebase — all devices read from it
+    if (isScorekeeper) {
+      db.ref('games/' + roomCode + '/batterInfo').set({
+        batterName: batterName || null,
+        balls: balls, strikes: strikes,
+        inning: currentInning, half: half, outs: outs,
+        awayRuns: awayRuns, homeRuns: homeRuns,
+        awayAbbr: awayAbbr, homeAbbr: homeAbbr,
+        final: false,
+        ts: Date.now()
+      });
     }
-    var now = new Date();
-    var hrs = now.getHours();
-    var ampm = hrs >= 12 ? 'PM' : 'AM';
-    hrs = hrs % 12 || 12;
-    var timeStr = hrs + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0') + ' ' + ampm;
-    document.getElementById('game-score').textContent = half + currentInning + ' · ' + outsStr + ' · ' + awayAbbr + ' ' + awayRuns + ' - ' + homeAbbr + ' ' + homeRuns + ' · ' + timeStr;
 
     // Auto-record completed at-bats — only the true scorekeeper device records
     if (!isScorekeeper) return;
@@ -911,15 +912,7 @@ function launchWatcherView() {
   document.getElementById('scorekeeper-controls').style.display = 'none';
   document.getElementById('watcher-banner').style.display = 'flex';
   document.getElementById('watcher-label').textContent = 'WATCHING LIVE — ' + myName;
-  // Start MLB poll for watchers too
-  if (db && roomCode) {
-    db.ref('games/' + roomCode + '/mlbGameId').get().then(function(snap) {
-      if (snap.val()) {
-        document.getElementById('auto-badge').style.display = 'inline-block';
-        startMLBPoll(snap.val());
-      }
-    });
-  }
+  // Watchers do NOT poll MLB API — they receive batter info via Firebase from scorekeeper
 }
 
 async function leaveGame() {
@@ -974,6 +967,9 @@ function setupListener() {
 
     localState = s;
     renderGame(s);
+
+    // Update batter strip from Firebase for all devices
+    if (s.batterInfo) renderBatterStrip(s.batterInfo);
 
     // HR modal
     if (s.lastResultWasHR && s.lastHRWinner) {
@@ -1132,6 +1128,31 @@ function resetGame() {
 // ══════════════════════════════════════════════════
 // RENDER
 // ══════════════════════════════════════════════════
+function renderBatterStrip(bi) {
+  if (!bi) return;
+  var strip = document.getElementById('batter-strip');
+  strip.style.display = 'flex';
+  if (bi.final) {
+    document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.5);">Game Over</span>';
+    document.getElementById('game-score').textContent = 'Final · ' + bi.awayAbbr + ' ' + bi.awayRuns + ' - ' + bi.homeAbbr + ' ' + bi.homeRuns;
+    return;
+  }
+  if (bi.batterName) {
+    document.getElementById('batter-name').innerHTML = bi.batterName +
+      ' <span style="color:var(--dirt);font-size:18px;letter-spacing:2px;">' + bi.balls + '-' + bi.strikes + '</span>';
+  } else {
+    document.getElementById('batter-name').innerHTML = '<span style="color:rgba(255,255,255,0.4);">Between Innings</span>';
+  }
+  var outsStr = bi.outs + (bi.outs === 1 ? ' out' : ' outs');
+  var now = new Date();
+  var hrs = now.getHours();
+  var ampm = hrs >= 12 ? 'PM' : 'AM';
+  hrs = hrs % 12 || 12;
+  var timeStr = hrs + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0') + ' ' + ampm;
+  document.getElementById('game-score').textContent = bi.half + bi.inning + ' · ' + outsStr + ' · ' + bi.awayAbbr + ' ' + bi.awayRuns + ' - ' + bi.homeAbbr + ' ' + bi.homeRuns + ' · ' + timeStr;
+}
+
+
 function renderGame(s) {
   // Always enforce role-based UI
   if (!isScorekeeper) {
