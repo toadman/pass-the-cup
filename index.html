@@ -533,22 +533,22 @@ async function pollMLB() {
   if (!selectedGameId) return;
   try {
     var ts = Date.now();
-    var linescoreUrl = 'https://statsapi.mlb.com/api/v1/game/' + selectedGameId + '/linescore';
-    var liveUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live?fields=gameData,status,abstractGameState,teams,abbreviation,liveData,plays,currentPlay,allPlays,about,isComplete,atBatIndex,halfInning,inning,matchup,batter,fullName,count,balls,strikes,result,eventType,rbi,description';
+    var linescoreUrl = 'https://statsapi.mlb.com/api/v1/game/' + selectedGameId + '/linescore?_=' + ts;
+    var liveUrl = 'https://statsapi.mlb.com/api/v1.1/game/' + selectedGameId + '/feed/live?fields=gameData,status,abstractGameState,teams,abbreviation,liveData,plays,currentPlay,allPlays,about,isComplete,atBatIndex,halfInning,inning,matchup,batter,fullName,count,balls,strikes,result,eventType,rbi,description&_=' + ts;
     var lsData, data;
 
     try {
       var r = await Promise.all([
-        fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(linescoreUrl) + '&_=' + ts, { cache: 'no-store' }),
-        fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(liveUrl) + '&_=' + ts, { cache: 'no-store' })
+        fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(linescoreUrl), { cache: 'no-store' }),
+        fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(liveUrl), { cache: 'no-store' })
       ]);
       lsData = await r[0].json();
       data = await r[1].json();
     } catch(e1) {
       try {
         var r2 = await Promise.all([
-          fetch('https://corsproxy.io/?' + encodeURIComponent(linescoreUrl)),
-          fetch('https://corsproxy.io/?' + encodeURIComponent(liveUrl))
+          fetch('https://corsproxy.io/?' + encodeURIComponent(linescoreUrl), { cache: 'no-store' }),
+          fetch('https://corsproxy.io/?' + encodeURIComponent(liveUrl), { cache: 'no-store' })
         ]);
         lsData = await r2[0].json();
         data = await r2[1].json();
@@ -742,10 +742,12 @@ async function createGame() {
     lastTPPlayer: null,
     lastTPRound: 0,
     undoSnapshot: null,
+    lastProcessedAtBat: null,
     status: 'lobby',
     watchers: {},
     mlbGameId: mlbGameId,
-    scorekeeperId: scorekeeperId
+    scorekeeperId: scorekeeperId,
+    batterInfo: null
   };
 
   try {
